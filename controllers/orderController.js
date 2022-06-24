@@ -1,7 +1,9 @@
-const jwt    = require('jsonwebtoken');
-const conn   = require('../dbConnection').promise();
+const jwt = require('jsonwebtoken');
+const conn = require('../dbConnection').promise();
+const pg = require('../dbConnection_pg');
 const crypto = require('crypto');
 const db_dev = require('../dbConnection');
+const logger = require('../logs');
 
 const getDurationInMilliseconds = (start) => {
     const NS_PER_SEC = 1e9
@@ -11,158 +13,233 @@ const getDurationInMilliseconds = (start) => {
     return (diff[0] * NS_PER_SEC + diff[1]) / NS_TO_MS
 }
 const start = process.hrtime()
-const durationInMilliseconds = getDurationInMilliseconds (start)
-exports.getOrder = async (req,res,next) => {
-    try{
+const durationInMilliseconds = getDurationInMilliseconds(start)
+exports.getOrder = async (req, res, next) => {
+    try {
 
-        const offset     = Number([req.body.offset]);
-        const limit      = Number([req.body.limit]);
-        const date_start = [req.body.date_start]+' 00:00:01';
-        const date_to    = [req.body.date_to] + ' 23:59:59';
-        const shop_id    = req.body.shop_id;
-        var condition;
-        if(date_start == ''|| date_to == '')
-        {
+        //const offset = Number([req.body.offset]);
+        let page = Number(req.body.page);
+        const limit = Number(req.body.limit);
+        const date_start = req.body.date_start + ' 00:00:01';
+        const date_to = req.body.date_to + ' 23:59:59';
+        const shop_id = req.body.shop_id;
+        const warehouse_id = req.body.warehouse_id;
+        const status = req.body.status;
+        //var condition;
+        if (date_start == '' || date_to == '') {
             return res.status(422).json({
-                status:422,
+                status: 422,
                 message: "Params date is null",
-                data:[]
+                data: []
             });
         }
-        else
-        {
-            var condition = "AND orderTime BETWEEN "+date_start+" 00:00:01 AND "+date_to+" 23:59:59";
-        }
-        if(typeof req.body.date_start == 'undefined')
-        {
+        // else {
+        //     var condition = "order_date BETWEEN " + date_start + " 00:00:01 AND " + date_to + " 23:59:59";
+        // }
+        if (typeof req.body.date_start == 'undefined') {
             return res.status(422).json({
-                status:422,
+                status: 422,
                 message: "Please provide the date_start",
-                data:[]
+                data: []
             });
         }
-        if(typeof req.body.date_to == 'undefined')
-        {
+        if (typeof req.body.date_to == 'undefined') {
             return res.status(422).json({
-                status:422,
+                status: 422,
                 message: "Please provide the date_to",
-                data:[]
+                data: []
             });
         }
 
-        if (req.body.jwt.details.map(x => x.customerId).indexOf(shop_id) === -1) {
-
-            return res.json({
-                status: 500,
-                message: "failed",
-                data: "shop_id not found"
+        if (warehouse_id == null || warehouse_id == '') {
+            return res.status(422).json({
+                status: 422,
+                message: "Params warehouse_id is null",
+                data: []
             });
         }
 
-        if(offset == '' || offset == null)
-            offset = 0;
-        if(offset == 0 || offset == null)
-            offset = 1;
-        if(limit == '' || limit == null)
+        if (shop_id == null || shop_id == '') {
+            return res.status(422).json({
+                status: 422,
+                message: "Params shop_id is null",
+                data: []
+            });
+        }
+
+        if (status == null || status == '') {
+            return res.status(422).json({
+                status: 422,
+                message: "Params status is null",
+                data: []
+            });
+        }
+
+        // if (req.body.jwt.details.map(x => x.customerId).indexOf(shop_id) === -1) {
+
+        //     return res.json({
+        //         status: 500,
+        //         message: "failed",
+        //         data: "shop_id not found"
+        //     });
+        // }
+
+        if (limit == '' || limit == null) {
             limit = 10;
-        const [row] = await conn.execute(
-            "SELECT organizationId,warehouseId,orderNo,orderType,orderTime,customerId,consigneeName,consigneeAddress1,consigneeCity,consigneeProvince,consigneeTel1,consigneeContact,carrierName,noteText from DOC_ORDER_HEADER WHERE customerId=? AND orderTime BETWEEN ? AND ? limit ? offset ?",
+        }
+
+        let offset = 0;
+        if (page == '' || page == null) {
+            page = 1;
+        } else if (page > 1) {
+            offset = (page - 1) * limit
+        }
+
+        let warehouse = '';
+        const queryWarehouse = "SELECT location_id FROM location WHERE code = $1 LIMIT 1";
+        let responseWarHouse = await pg.query(queryWarehouse,
             [
-                shop_id,
+                warehouse_id
+            ]);
+        if (responseWarHouse.rowCount > 0) {
+            warehouse = responseWarHouse.rows[0].location_id;
+        }
+
+
+        const query = "SELECT oh.order_header_id, lc.name as warehouse, lc.code as warehouse_code, c.name as client, c.code as client_code, oh.total_weight, oh.total_price, oh.shipping_price, oh.discount, oh.insurance, oh.cod_price, oh.order_date, oh.order_code,s.name as status, oh.status_id, s.code as status_code, " +
+            "dt.name as delivery_type, cr.name as courier, cn.name as channel, c.name as shop_name, st.name as stock_type, pt.name as payment_type, oh.booking_number, oh.waybill_number, oh.recipient_name, oh.recipient_phone, oh.recipient_email, oh.recipient_address, oh.recipient_district, " +
+            "oh.recipient_city, oh.recipient_province, oh.recipient_country, oh.recipient_postal_code, oh.created_date " +
+            "FROM orderheader oh " +
+            "LEFT JOIN client c ON c.client_id = oh.client_id " +
+            "LEFT JOIN status s ON s.status_id = oh.status_id " +
+            "LEFT JOIN deliverytype dt  ON dt.delivery_type_id = oh.delivery_type_id " +
+            "LEFT JOIN courier cr  ON cr.courier_id = dt.courier_id " +
+            "LEFT JOIN channel cn ON cn.channel_id = oh.channel_id " +
+            "LEFT JOIN stocktype st ON st.stock_type_id = oh.stock_type_id " +
+            "LEFT JOIN paymenttype pt ON pt.payment_type_id = oh.payment_type_id " +
+            "LEFT JOIN location lc ON lc.location_id = oh.location_id " +
+            "WHERE  oh.order_date BETWEEN $1 AND $2 " +
+            "AND c.client_id = $3 AND oh.status_id = $4 AND oh.location_id = $5 " +
+            "OFFSET $6 LIMIT $7";
+
+        let response = await pg.query(query,
+            [
                 date_start,
                 date_to,
-                limit,
-                offset
-            ]
-        );
-        if(row.length > 0){
+                shop_id,
+                status,
+                warehouse,
+                offset,
+                limit
+            ]);
+
+        const queryTotal = "SELECT count(oh.order_header_id) as total " +
+            "FROM orderheader oh " +
+            "LEFT JOIN client c ON c.client_id = oh.client_id " +
+            "WHERE  oh.order_date BETWEEN $1 AND $2 " +
+            "AND c.client_id = $3 AND oh.status_id = $4 AND oh.location_id = $5 ";
+
+        let responseTotal = await pg.query(queryTotal,
+            [
+                date_start,
+                date_to,
+                shop_id,
+                status,
+                warehouse
+            ]);
+        let total = responseTotal.rows[0].total;
+
+        let dataResponse = [];
+
+        if (response.rowCount > 0) {
+            dataResponse = response.rows
+
+            await Promise.all(dataResponse.map(async (data) => {
+                const queryDetail = "SELECT  order_code as code, order_quantity as qty, unit_price, total_unit_price, unit_weight FROM orderdetail WHERE order_code = $1";
+                let responseDetail = await pg.query(queryDetail,
+                    [
+                        data.order_header_id
+                    ]);
+                data['detail'] = null;
+                if (responseDetail.rowCount > 0) {
+                    data['detail'] = responseDetail.rows;
+                }
+            }));
+
             return res.json({
-                status:200,
-                message:'success',
-                response_time:durationInMilliseconds.toLocaleString()+" s",
-                total_row:row.length,
-                data:row
+                status: 200,
+                message: 'success',
+                response_time: durationInMilliseconds.toLocaleString() + " s",
+                lastPage: Math.ceil(total / limit) == page ? true : false,
+                pageSize: response.rowCount,
+                pageNumer: page == null || page == '' ? 1 : page,
+                total: total,
+                data: dataResponse
             });
         }
 
         res.json({
-            status:401,
-            message:"Order Not Found",
-            response_time:durationInMilliseconds.toLocaleString()+" s",
-            data:[]
+            status: 401,
+            message: "Order Not Found",
+            response_time: durationInMilliseconds.toLocaleString() + " s",
+            data: []
         });
-        
+
     }
-    catch(err){
+    catch (err) {
         next(err);
     }
 }
 
-exports.getDetailOrder = async (req,res,next) => {
+exports.getDetailOrder = async (req, res, next) => {
     try {
-        const orderno = [req.body.orderno];
-        const shop_id = [req.body.shop_id];
-        
-        db_dev.query("SELECT organizationId,warehouseId,orderNo,orderType,orderTime,customerId,consigneeName,consigneeAddress1,consigneeCity,consigneeProvince,consigneeTel1,consigneeContact,carrierName,noteText from DOC_ORDER_HEADER WHERE customerId = ? AND orderNo = ?", [shop_id, orderno],function (err, oh, fields)
-        {
-            if(oh[0] == undefined)
-            {
-                return res.json({
-                    status:401,
-                    message:"Order Not Found",
-                    response_time:durationInMilliseconds.toLocaleString()+" s",
-                    data:[]
-                });
-            }
-            var data = [];
-            const header = {
-                "organizationId"   : oh[0].organizationId,
-                "warehouseId"      : oh[0].warehouseId,
-                "orderNo"          : oh[0].orderNo,
-                "orderType"        : oh[0].orderType,
-                "orderTime"        : oh[0].orderTime,
-                "customerId"       : oh[0].customerId,
-                "consigneeName"    : oh[0].consigneeName,
-                "consigneeAddress1": oh[0].consigneeAddress1,
-                "consigneeCity"    : oh[0].consigneeCity,
-                "consigneeProvince": oh[0].consigneeProvince,
-                "consigneeTel1"    : oh[0].consigneeTel1,
-                "consigneeContact" : oh[0].consigneeContact,
-                "carrierName"      : oh[0].carrierName,
-                "noteText"         : oh[0].noteText,
-                "details"          : data
-            };
-
-            db_dev.query("SELECT warehouseId,organizationId,orderNo,sku,price,qtyOrdered FROM DOC_ORDER_DETAILS where orderNo = ?",[oh[0].orderNo],function (err, detail, fields)
-            {
-                const data = detail;
-                const header = {
-                    "organizationId"   : oh[0].organizationId,
-                    "warehouseId"      : oh[0].warehouseId,
-                    "orderNo"          : oh[0].orderNo,
-                    "orderType"        : oh[0].orderType,
-                    "orderTime"        : oh[0].orderTime,
-                    "customerId"       : oh[0].customerId,
-                    "consigneeName"    : oh[0].consigneeName,
-                    "consigneeAddress1": oh[0].consigneeAddress1,
-                    "consigneeCity"    : oh[0].consigneeCity,
-                    "consigneeProvince": oh[0].consigneeProvince,
-                    "consigneeTel1"    : oh[0].consigneeTel1,
-                    "consigneeContact" : oh[0].consigneeContact,
-                    "carrierName"      : oh[0].carrierName,
-                    "noteText"         : oh[0].noteText,
-                    "details"          : data
-                };
-                return res.json({
-                    status:200,
-                    message:'success',
-                    response_time:durationInMilliseconds.toLocaleString()+" s",
-                    data:header
-                });
+        const orderno = req.body.orderno;
+        const shop_id = req.body.shop_id;
+        if (orderno == null || orderno == '') {
+            return res.status(422).json({
+                status: 422,
+                message: "Params orderno is null",
+                data: []
             });
-        });        
+        }
+
+        if (shop_id == null || shop_id == '') {
+            return res.status(422).json({
+                status: 422,
+                message: "Params shop_id is null",
+                data: []
+            });
+        }
+        const query = "SELECT od.order_detail_id, od.order_code, od.inventory_id, od.order_header_id, od.item_id, od.order_quantity, od.unit_price, od.total_unit_price, od.unit_weight, od.status_id, od.created_date, od.ref_detail_id  " +
+            "FROM orderdetail od " +
+            "LEFT JOIN orderheader oh ON oh.order_header_id = od.order_header_id " +
+            "WHERE od.order_code = $1 AND oh.client_id = $2";
+        let response = await pg.query(query,
+            [
+                orderno,
+                shop_id
+            ]);
+
+        if (response.rowCount > 0) {
+            return res.json({
+                status: 200,
+                message: 'success',
+                response_time: durationInMilliseconds.toLocaleString() + " s",
+                data: response.rows[0]
+            });
+        }
+
+        res.json({
+            status: 401,
+            message: "Order Detail Not Found",
+            response_time: durationInMilliseconds.toLocaleString() + " s",
+            data: []
+        });
+
+
+
     }
-    catch(err){
+    catch (err) {
         next(err);
     }
 }
