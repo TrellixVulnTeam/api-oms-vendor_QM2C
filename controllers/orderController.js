@@ -253,7 +253,7 @@ exports.cancleOrder = async (req, res, next) => {
                 orderno
             ]);
         if (responseOrderHeader.rowCount > 0) {
-            const updateOrderHeader = "UPDATE orderheader SET status_id = 73 WHERE order_code = $1";
+            const updateOrderHeader = "UPDATE orderheader SET status_id = 14 WHERE order_code = $1";
             await client.query('BEGIN');
             let responseUpdateOH = await pg.query(updateOrderHeader,
                 [
@@ -303,17 +303,6 @@ exports.searchOrder = async (req, res, next) => {
             offset = (page - 1) * limit
         }
 
-        let warehouse = '';
-        const queryWarehouse = "SELECT location_id FROM location WHERE code = $1 LIMIT 1";
-        let responseWarHouse = await pg.query(queryWarehouse,
-            [
-                keyword
-            ]);
-        if (responseWarHouse.rowCount > 0) {
-            warehouse = responseWarHouse.rows[0].location_id;
-        }
-
-
         const query = "SELECT oh.order_header_id, lc.name as warehouse, lc.code as warehouse_code, c.name as client, c.code as client_code, oh.total_weight, oh.total_price, oh.shipping_price, oh.discount, oh.insurance, oh.cod_price, oh.order_date, oh.order_code,s.name as status, oh.status_id, s.code as status_code, " +
             "dt.name as delivery_type, cr.name as courier, cn.name as channel, c.name as shop_name, st.name as stock_type, pt.name as payment_type, oh.booking_number, oh.waybill_number, oh.recipient_name, oh.recipient_phone, oh.recipient_email, oh.recipient_address, oh.recipient_district, " +
             "oh.recipient_city, oh.recipient_province, oh.recipient_country, oh.recipient_postal_code, oh.created_date " +
@@ -326,34 +315,25 @@ exports.searchOrder = async (req, res, next) => {
             "LEFT JOIN stocktype st ON st.stock_type_id = oh.stock_type_id " +
             "LEFT JOIN paymenttype pt ON pt.payment_type_id = oh.payment_type_id " +
             "LEFT JOIN location lc ON lc.location_id = oh.location_id " +
-            "WHERE  oh.order_date BETWEEN $1 AND $2 " +
-            "AND c.client_id = $3 AND oh.status_id = $4 AND oh.location_id = $5 " +
-            "OFFSET $6 LIMIT $7";
+            "WHERE oh.order_code LIKE $1 || '%' OR cn.name LIKE $1 || '%' OR s.code = $1 " +
+            "OFFSET $2 LIMIT $3";
 
         let response = await pg.query(query,
             [
-                date_start,
-                date_to,
-                shop_id,
-                status,
-                warehouse,
+                keyword,
                 offset,
                 limit
             ]);
 
         const queryTotal = "SELECT count(oh.order_header_id) as total " +
             "FROM orderheader oh " +
-            "LEFT JOIN client c ON c.client_id = oh.client_id " +
-            "WHERE  oh.order_date BETWEEN $1 AND $2 " +
-            "AND c.client_id = $3 AND oh.status_id = $4 AND oh.location_id = $5 ";
+            "LEFT JOIN status s ON s.status_id = oh.status_id " +
+            "LEFT JOIN channel cn ON cn.channel_id = oh.channel_id " +
+            "WHERE oh.order_code LIKE '$1%' OR cn.name LIKE '$1$' OR s.code = $1 ";
 
         let responseTotal = await pg.query(queryTotal,
             [
-                date_start,
-                date_to,
-                shop_id,
-                status,
-                warehouse
+                keyword,
             ]);
         let total = responseTotal.rows[0].total;
 
