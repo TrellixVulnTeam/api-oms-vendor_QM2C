@@ -290,7 +290,7 @@ exports.searchOrder = async (req, res, next) => {
         //const offset = Number([req.body.offset]);
         let page = Number(req.body.page);
         const limit = Number(req.body.limit);
-        const keyword = req.body.keyword;
+        const keyword = req.body.keyword.replace(/\s/g, '');
 
         if (limit == '' || limit == null) {
             limit = 10;
