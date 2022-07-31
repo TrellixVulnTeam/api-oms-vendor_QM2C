@@ -378,3 +378,706 @@ exports.searchOrder = async (req, res, next) => {
         next(err);
     }
 }
+
+exports.saveOrder = async (req, res, next) => {
+    try {
+        if(
+            !req.headers.authorization||
+            !req.headers.authorization.startsWith('Bearer')||
+            !req.headers.authorization.split(' ')[1]
+        ){
+            return res.status(422).json({
+                message: "Please provide the token",
+            });
+        }
+
+        if(req.body.location_id==='undefine'||!req.body.location_id){
+            return res.status(422).json({
+                message: "location_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.client_id==='undefine'||!req.body.client_id){
+            return res.status(422).json({
+                message: "client_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.status_id==='undefine'||!req.body.status_id){
+            return res.status(422).json({
+                message: "status_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.delivery_type_id==='undefine'||!req.body.delivery_type_id){
+            return res.status(422).json({
+                message: "delivery_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.payment_type_id==='undefine'||!req.body.payment_type_id){
+            return res.status(422).json({
+                message: "payment_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.channel_id==='undefine'||!req.body.channel_id){
+            return res.status(422).json({
+                message: "channel_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.stock_type_id==='undefine'||!req.body.stock_type_id){
+            return res.status(422).json({
+                message: "stock_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.order_type_id==='undefine'||!req.body.order_type_id){
+            return res.status(422).json({
+                message: "order_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.recipient_name==='undefine'||!req.body.recipient_name){
+            return res.status(422).json({
+                message: "recipient_name shouldn't be empty"
+            });
+        }
+
+        if(req.body.recipient_phone==='undefine'||!req.body.recipient_phone){
+            return res.status(422).json({
+                message: "recipient_phone shouldn't be empty"
+            });
+        }
+
+        if(req.body.recipient_address==='undefine'||!req.body.recipient_address){
+            return res.status(422).json({
+                message: "recipient_address shouldn't be empty"
+            });
+        }
+
+        if(req.body.total_koli==='undefine'||!req.body.total_koli){
+            return res.status(422).json({
+                message: "total_koli shouldn't be empty"
+            });
+        }
+
+        if(req.body.total_weight==='undefine'||!req.body.total_weight){
+            return res.status(422).json({
+                message: "total_weight shouldn't be empty"
+            });
+        }
+
+        if(req.body.shipping_price==='undefine'||!req.body.shipping_price){
+            return res.status(422).json({
+                message: "shipping_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.total_price==='undefine'||!req.body.total_price){
+            return res.status(422).json({
+                message: "total_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.cod_price==='undefine'||!req.body.cod_price){
+            return res.status(422).json({
+                message: "cod_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.dfod_price==='undefine'||!req.body.dfod_price){
+            return res.status(422).json({
+                message: "dfod_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.order_type==='undefine'||!req.body.order_type){
+            return res.status(422).json({
+                message: "order_type shouldn't be empty"
+            });
+        }
+
+        if(req.body.location_id===''){
+            req.body.location_id = 0
+        }
+        if(req.body.location_to===''){
+            req.body.location_to = 0
+        }
+        if(req.body.client_id===''){
+            req.body.client_id = 0
+        }
+        if(req.body.shop_configuration_id===''){
+            req.body.shop_configuration_id = 0
+        }
+        if(req.body.status_id===''){
+            req.body.status_id = 0
+        }
+        if(req.body.delivery_type_id===''){
+            req.body.delivery_type_id = 0
+        }
+        if(req.body.payment_type_id===''){
+            req.body.payment_type_id = 0
+        }
+        if(req.body.distributor_id===''){
+            req.body.distributor_id = 0
+        }
+        if(req.body.dropshipper_id===''){
+            req.body.dropshipper_id = 0
+        }
+        if(req.body.channel_id===''){
+            req.body.channel_id = 0
+        }
+        if(req.body.stock_type_id===''){
+            req.body.stock_type_id = 0
+        }
+        if(req.body.order_type_id===''){
+            req.body.order_type_id = 0
+        }
+        if(req.body.shipping_price===''){
+            req.body.shipping_price = 0
+        }
+        if(req.body.total_price===''){
+            req.body.total_price = 0
+        }
+        if(req.body.flag_cob===''){
+            req.body.flag_cob = 0
+        }
+        if(req.body.insurance===''){
+            req.body.insurance = 0
+        }
+        if(req.body.wh_before===''){
+            req.body.wh_before = 0
+        }
+        if(req.body.order_type===''){
+            req.body.order_type = 0
+        }
+        if(req.body.fullfilmenttype_configuration_id===''){
+            req.body.fullfilmenttype_configuration_id = 0
+        }
+        if(req.body.total_product_price===''){
+            req.body.total_product_price = 0
+        }
+        if(req.body.is_insurance===''){
+            req.body.is_insurance = 0
+        }
+
+        
+        let milliseconds = new Date().getTime();
+        let code = "INV/"+dateString()+"/XX/V/"+milliseconds+"_CASE_5_PHASE_1";
+        req.body.code = code;
+        req.body.order_code = code;
+        req.body.created_date = new Date();
+        req.body.modified_date = new Date();
+        req.body.created_by = 0;
+        req.body.modified_by = 0;
+        req.body.payment_date = new Date();
+
+        const queryText = `INSERT INTO orderheader("order_code", "location_id", "location_to", "client_id", "shop_configuration_id", "status_id", "delivery_type_id", "payment_type_id", "distributor_id", "dropshipper_id", "channel_id", "stock_type_id", "order_type_id", "ref_order_id", "code", "order_date", "booking_number", "waybill_number", "recipient_name", "recipient_phone", "recipient_email", "recipient_address", "recipient_district", "recipient_city", "recipient_province", "recipient_country", "recipient_postal_code", "latitude", "longitude", "buyer_name", "buyer_phone", "buyer_email", "buyer_address", "buyer_district", "buyer_city", "buyer_province", "buyer_country", "buyer_postal_code", "total_koli", "total_weight", "shipping_price", "total_price", "cod_price", "dfod_price", "stock_source", "notes", "remark", "created_date", "modified_date", "created_by", "modified_by", "store_name", "created_name", "order_source", "discount", "merchant_name", "merchant_phone", "merchant_address", "merchant_country", "merchant_province", "merchant_city", "merchant_district", "isfulfillment", "discount_point", "discount_seller", "discount_platform", "discount_shipping", "payment_date", "flag_cob", "insurance", "wh_before", "order_type", "fullfilmenttype_configuration_id", "total_product_price", "is_insurance", "gift_notes")
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55,$56,$57,$58,$59,$60,$61,$62,$63,$64,$65,$66,$67,$68,$69,$70,$71,$72,$73,$74,$75,$76) RETURNING order_header_id`;
+        const values = [
+                req.body.order_code,
+                req.body.location_id,
+                req.body.location_to,
+                req.body.client_id,
+                req.body.shop_configuration_id,
+                req.body.status_id,
+                req.body.delivery_type_id,
+                req.body.payment_type_id,
+                req.body.distributor_id,
+                req.body.dropshipper_id,
+                req.body.channel_id,
+                req.body.stock_type_id,
+                req.body.order_type_id,
+                req.body.ref_order_id,
+                req.body.code,
+                req.body.order_date,
+                req.body.booking_number,
+                req.body.waybill_number,
+                req.body.recipient_name,
+                req.body.recipient_phone,
+                req.body.recipient_email,
+                req.body.recipient_address,
+                req.body.recipient_district,
+                req.body.recipient_city,
+                req.body.recipient_province,
+                req.body.recipient_country,
+                req.body.recipient_postal_code,
+                req.body.latitude,
+                req.body.longitude,
+                req.body.buyer_name,
+                req.body.buyer_phone,
+                req.body.buyer_email,
+                req.body.buyer_address,
+                req.body.buyer_district,
+                req.body.buyer_city,
+                req.body.buyer_province,
+                req.body.buyer_country,
+                req.body.buyer_postal_code,
+                req.body.total_koli,
+                req.body.total_weight,
+                req.body.shipping_price,
+                req.body.total_price,
+                req.body.cod_price,
+                req.body.dfod_price,
+                req.body.stock_source,
+                req.body.notes,
+                req.body.remark,
+                req.body.created_date,
+                req.body.modified_date,
+                req.body.created_by,
+                req.body.modified_by,
+                req.body.store_name,
+                req.body.created_name,
+                req.body.order_source,
+                req.body.discount,
+                req.body.merchant_name,
+                req.body.merchant_phone,
+                req.body.merchant_address,
+                req.body.merchant_country,
+                req.body.merchant_province,
+                req.body.merchant_city,
+                req.body.merchant_district,
+                req.body.isfulfillment,
+                req.body.discount_point,
+                req.body.discount_seller,
+                req.body.discount_platform,
+                req.body.discount_shipping,
+                req.body.payment_date,
+                req.body.flag_cob,
+                req.body.insurance,
+                req.body.wh_before,
+                req.body.order_type,
+                req.body.fullfilmenttype_configuration_id,
+                req.body.total_product_price,
+                req.body.is_insurance,
+                req.body.gift_notes
+            ];
+        pg.query(queryText, values,function (err, data) {
+            if (err) {
+                console.log(err)
+            } else {
+                if (req.body.detail.length > 0) {
+                    Promise.all(req.body.detail.map(async (detail) => {
+                        detail.order_code =  req.body.order_code;
+                        detail.order_header_id = data.rows[0].order_header_id
+                        detail.created_date = new Date();
+                        detail.modified_date = new Date();
+                        detail.created_by = 0;
+                        detail.modified_by = 0;
+
+                        const queryDetail = `UPDATE orderdetail set inventory_id = $2 ,order_header_id = $3 ,item_id = $4 ,order_quantity = $5 ,unit_price = $6 ,total_unit_price = $7 ,unit_weight = $8 ,status_id = $9 ,modified_date = $10 ,modified_by = $11 ,ref_detail_id = $12 where order_detail_id = $1 `;
+                        const valuesDetail = [
+                            detail.order_detail_id,
+                            detail.inventory_id,
+                            detail.order_header_id,
+                            detail.item_id,
+                            detail.order_quantity,
+                            detail.unit_price,
+                            detail.total_unit_price,
+                            detail.unit_weight,
+                            detail.status_id,
+                            detail.modified_date,
+                            detail.modified_by,
+                            detail.ref_detail_id
+                        ];
+                        pg.query(queryDetail, valuesDetail,function (err, data) {
+                           
+                        })
+                    }));
+                    return res.json({
+                        status:200,
+                        message:'Success',
+                        response_time:durationInMilliseconds.toLocaleString() + " s",
+                        total_row:data.rowCount ,
+                        data:data.rows[0]
+                    });
+                }else{
+                    return res.json({
+                        status:200,
+                        message:'Success',
+                        response_time:durationInMilliseconds.toLocaleString() + " s",
+                        total_row:data.rowCount ,
+                        data:data.rows[0]
+                    });  
+                }
+                
+            }
+        });
+
+
+    }catch(err){
+       
+        return res.json({
+            status:500,
+            message:'Failed',
+            response_time:durationInMilliseconds.toLocaleString() + " s",
+            data:[]
+        });
+        // next(err);
+    }
+}
+
+exports.updateOrder = async (req, res, next) => {
+    try {
+        if(
+            !req.headers.authorization||
+            !req.headers.authorization.startsWith('Bearer')||
+            !req.headers.authorization.split(' ')[1]
+        ){
+            return res.status(422).json({
+                message: "Please provide the token",
+            });
+        }
+
+        if(req.body.order_header_id==='undefine'||!req.body.order_header_id){
+            return res.status(422).json({
+                message: "order_header_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.location_id==='undefine'||!req.body.location_id){
+            return res.status(422).json({
+                message: "location_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.client_id==='undefine'||!req.body.client_id){
+            return res.status(422).json({
+                message: "client_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.status_id==='undefine'||!req.body.status_id){
+            return res.status(422).json({
+                message: "status_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.delivery_type_id==='undefine'||!req.body.delivery_type_id){
+            return res.status(422).json({
+                message: "delivery_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.payment_type_id==='undefine'||!req.body.payment_type_id){
+            return res.status(422).json({
+                message: "payment_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.channel_id==='undefine'||!req.body.channel_id){
+            return res.status(422).json({
+                message: "channel_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.stock_type_id==='undefine'||!req.body.stock_type_id){
+            return res.status(422).json({
+                message: "stock_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.order_type_id==='undefine'||!req.body.order_type_id){
+            return res.status(422).json({
+                message: "order_type_id shouldn't be empty"
+            });
+        }
+
+        if(req.body.recipient_name==='undefine'||!req.body.recipient_name){
+            return res.status(422).json({
+                message: "recipient_name shouldn't be empty"
+            });
+        }
+
+        if(req.body.recipient_phone==='undefine'||!req.body.recipient_phone){
+            return res.status(422).json({
+                message: "recipient_phone shouldn't be empty"
+            });
+        }
+
+        if(req.body.recipient_address==='undefine'||!req.body.recipient_address){
+            return res.status(422).json({
+                message: "recipient_address shouldn't be empty"
+            });
+        }
+
+        if(req.body.total_koli==='undefine'||!req.body.total_koli){
+            return res.status(422).json({
+                message: "total_koli shouldn't be empty"
+            });
+        }
+
+        if(req.body.total_weight==='undefine'||!req.body.total_weight){
+            return res.status(422).json({
+                message: "total_weight shouldn't be empty"
+            });
+        }
+
+        if(req.body.shipping_price==='undefine'||!req.body.shipping_price){
+            return res.status(422).json({
+                message: "shipping_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.total_price==='undefine'||!req.body.total_price){
+            return res.status(422).json({
+                message: "total_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.cod_price==='undefine'||!req.body.cod_price){
+            return res.status(422).json({
+                message: "cod_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.dfod_price==='undefine'||!req.body.dfod_price){
+            return res.status(422).json({
+                message: "dfod_price shouldn't be empty"
+            });
+        }
+
+        if(req.body.order_type==='undefine'||!req.body.order_type){
+            return res.status(422).json({
+                message: "order_type shouldn't be empty"
+            });
+        }
+
+        if(req.body.location_id===''){
+            req.body.location_id = 0
+        }
+        if(req.body.location_to===''){
+            req.body.location_to = 0
+        }
+        if(req.body.client_id===''){
+            req.body.client_id = 0
+        }
+        if(req.body.shop_configuration_id===''){
+            req.body.shop_configuration_id = 0
+        }
+        if(req.body.status_id===''){
+            req.body.status_id = 0
+        }
+        if(req.body.delivery_type_id===''){
+            req.body.delivery_type_id = 0
+        }
+        if(req.body.payment_type_id===''){
+            req.body.payment_type_id = 0
+        }
+        if(req.body.distributor_id===''){
+            req.body.distributor_id = 0
+        }
+        if(req.body.dropshipper_id===''){
+            req.body.dropshipper_id = 0
+        }
+        if(req.body.channel_id===''){
+            req.body.channel_id = 0
+        }
+        if(req.body.stock_type_id===''){
+            req.body.stock_type_id = 0
+        }
+        if(req.body.order_type_id===''){
+            req.body.order_type_id = 0
+        }
+        if(req.body.shipping_price===''){
+            req.body.shipping_price = 0
+        }
+        if(req.body.total_price===''){
+            req.body.total_price = 0
+        }
+        if(req.body.flag_cob===''){
+            req.body.flag_cob = 0
+        }
+        if(req.body.insurance===''){
+            req.body.insurance = 0
+        }
+        if(req.body.wh_before===''){
+            req.body.wh_before = 0
+        }
+        if(req.body.order_type===''){
+            req.body.order_type = 0
+        }
+        if(req.body.fullfilmenttype_configuration_id===''){
+            req.body.fullfilmenttype_configuration_id = 0
+        }
+        if(req.body.total_product_price===''){
+            req.body.total_product_price = 0
+        }
+        if(req.body.is_insurance===''){
+            req.body.is_insurance = 0
+        }
+
+        if (req.body.detail.length > 0) {
+            req.body.detail.map( (detail) => {
+                if(detail.order_detail_id==='undefine'||!detail.order_detail_id){
+                    return res.status(422).json({
+                        message: "detail order_detail_id shouldn't be empty"
+                    });
+                }
+            })
+        }
+
+        
+        let milliseconds = new Date().getTime();
+        //req.body.created_date = new Date();
+        req.body.modified_date = new Date();
+        req.body.modified_by = 0;
+        req.body.payment_date = new Date();
+
+        const queryText = `UPDATE orderheader set location_id = $2, location_to = $3, client_id= $4, shop_configuration_id = $5, status_id = $6, delivery_type_id = $7, payment_type_id = $8, distributor_id = $9, dropshipper_id = $10, channel_id = $11, stock_type_id = $12, order_type_id = $13, ref_order_id = $14, order_date = $15, booking_number = $16, waybill_number = $17, recipient_name = $18,  recipient_phone = $19 ,  recipient_email = $20 ,  recipient_address = $21 ,  recipient_district = $22 ,  recipient_city = $23 ,  recipient_province = $24 ,  recipient_country = $25 ,  recipient_postal_code = $26 ,  latitude = $27 ,  longitude = $28 ,  buyer_name = $29 ,  buyer_phone = $30 ,  buyer_email = $31 ,  buyer_address = $32 ,  buyer_district = $33 ,  buyer_city = $34 ,  buyer_province = $35 ,  buyer_country = $36 ,  buyer_postal_code = $37 ,  total_koli = $38 ,  total_weight = $39 ,  shipping_price = $40 ,  total_price = $41 ,  cod_price = $42 ,  dfod_price = $43 ,  stock_source = $44 ,  notes = $45 ,  remark = $46 ,  modified_date = $47 ,  modified_by = $48 ,  store_name = $49 ,  created_name = $50 ,  order_source = $51 ,  discount = $52 ,  merchant_name = $53 ,  merchant_phone = $54 ,  merchant_address = $55 ,  merchant_country = $56 ,  merchant_province = $57 ,  merchant_city = $58 ,  merchant_district = $59 ,  isfulfillment = $60 ,  discount_point = $61 ,  discount_seller = $62 ,  discount_platform = $63 ,  discount_shipping = $64 ,  payment_date = $65 ,  flag_cob = $66 ,  insurance = $67 ,  wh_before = $68 ,  order_type = $69 ,  fullfilmenttype_configuration_id = $70 ,  total_product_price = $71 ,  is_insurance = $72 ,  gift_notes = $73 where order_header_id = $1`;
+        const values = [
+                req.body.order_header_id,
+                req.body.location_id,
+                req.body.location_to,
+                req.body.client_id,
+                req.body.shop_configuration_id,
+                req.body.status_id,
+                req.body.delivery_type_id,
+                req.body.payment_type_id,
+                req.body.distributor_id,
+                req.body.dropshipper_id,
+                req.body.channel_id,
+                req.body.stock_type_id,
+                req.body.order_type_id,
+                req.body.ref_order_id,
+                req.body.order_date,
+                req.body.booking_number,
+                req.body.waybill_number,
+                req.body.recipient_name,
+                req.body.recipient_phone,
+                req.body.recipient_email,
+                req.body.recipient_address,
+                req.body.recipient_district,
+                req.body.recipient_city,
+                req.body.recipient_province,
+                req.body.recipient_country,
+                req.body.recipient_postal_code,
+                req.body.latitude,
+                req.body.longitude,
+                req.body.buyer_name,
+                req.body.buyer_phone,
+                req.body.buyer_email,
+                req.body.buyer_address,
+                req.body.buyer_district,
+                req.body.buyer_city,
+                req.body.buyer_province,
+                req.body.buyer_country,
+                req.body.buyer_postal_code,
+                req.body.total_koli,
+                req.body.total_weight,
+                req.body.shipping_price,
+                req.body.total_price,
+                req.body.cod_price,
+                req.body.dfod_price,
+                req.body.stock_source,
+                req.body.notes,
+                req.body.remark,
+                req.body.modified_date,
+                req.body.modified_by,
+                req.body.store_name,
+                req.body.created_name,
+                req.body.order_source,
+                req.body.discount,
+                req.body.merchant_name,
+                req.body.merchant_phone,
+                req.body.merchant_address,
+                req.body.merchant_country,
+                req.body.merchant_province,
+                req.body.merchant_city,
+                req.body.merchant_district,
+                req.body.isfulfillment,
+                req.body.discount_point,
+                req.body.discount_seller,
+                req.body.discount_platform,
+                req.body.discount_shipping,
+                req.body.payment_date,
+                req.body.flag_cob,
+                req.body.insurance,
+                req.body.wh_before,
+                req.body.order_type,
+                req.body.fullfilmenttype_configuration_id,
+                req.body.total_product_price,
+                req.body.is_insurance,
+                req.body.gift_notes
+            ];
+        pg.query(queryText, values,function (err, data) {
+            if (err) {
+                console.log(err)
+            } else {
+                if (req.body.detail.length > 0) {
+                    Promise.all(req.body.detail.map(async (detail) => {
+                        detail.order_code =  req.body.order_code;
+                        detail.order_header_id = data.rows[0].order_header_id
+                        //detail.created_date = new Date();
+                        detail.modified_date = new Date();
+                        detail.created_by = 0;
+                        detail.modified_by = 0;
+
+                        const queryDetail = `UPDATE orderdetail SET  `;
+                        const valuesDetail = [
+                            detail.order_code,
+                            detail.inventory_id,
+                            detail.order_header_id,
+                            detail.item_id,
+                            detail.order_quantity,
+                            detail.unit_price,
+                            detail.total_unit_price,
+                            detail.unit_weight,
+                            detail.status_id,
+                            detail.created_date,
+                            detail.modified_date,
+                            detail.created_by,
+                            detail.modified_by,
+                            detail.ref_detail_id
+                        ];
+                        pg.query(queryDetail, valuesDetail,function (err, data) {
+                           
+                        })
+                    }));
+                    return res.json({
+                        status:200,
+                        message:'Success',
+                        response_time:durationInMilliseconds.toLocaleString() + " s",
+                        total_row:data.rowCount ,
+                        data:data.rows[0]
+                    });
+                }else{
+                    return res.json({
+                        status:200,
+                        message:'Success',
+                        response_time:durationInMilliseconds.toLocaleString() + " s",
+                        total_row:data.rowCount ,
+                        data:data.rows[0]
+                    });  
+                }
+                
+            }
+        });
+
+
+    }catch(err){
+       
+        return res.json({
+            status:500,
+            message:'Failed',
+            response_time:durationInMilliseconds.toLocaleString() + " s",
+            data:[]
+        });
+        // next(err);
+    }
+}
+
+function dateString(){
+    let date = "";
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    let mm = today.getMonth() + 1; // Months start at 0!
+    let dd = today.getDate();
+
+    if (dd < 10) dd = '0' + dd;
+    if (mm < 10) mm = '0' + mm;
+
+    return yyyy+mm+dd;
+}
