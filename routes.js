@@ -14,11 +14,8 @@ const {
     liveOnPo_manual,
     liveOnPoStatus_manual
 } = require('./controllers/liveOnController');
-<<<<<<< HEAD
 const { getItems, getDetailItem, getListItems, createItem, activateItem, updateItem, uploadItem } = require('./controllers/itemController');
-=======
 const { getOrder, getDetailOrder, cancleOrder, searchOrder, saveOrder,updateOrder } = require('./controllers/orderController');
->>>>>>> a5152874ea9358228be2dddab00f26a98168f72d
 const { getLocation } = require('./controllers/locationController');
 const { serviceRates, generateWaybill, requestPickup, requestCancel, tracking } = require('./controllers/anterajaController');
 const { webhookChange } = require('./controllers/webhookinternalController');
