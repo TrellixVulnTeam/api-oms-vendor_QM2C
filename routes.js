@@ -15,7 +15,7 @@ const {
     liveOnPoStatus_manual
 } = require('./controllers/liveOnController');
 const { getOrder, getDetailOrder, cancleOrder, searchOrder } = require('./controllers/orderController');
-const { getItems, getDetailItem, getListItems, createItem, deleteItem, updateItem } = require('./controllers/itemController');
+const { getItems, getDetailItem, getListItems, createItem, activateItem, updateItem, uploadItem } = require('./controllers/itemController');
 const { getLocation } = require('./controllers/locationController');
 const { serviceRates, generateWaybill, requestPickup, requestCancel, tracking } = require('./controllers/anterajaController');
 const { webhookChange } = require('./controllers/webhookinternalController');
@@ -29,6 +29,10 @@ const { createSKU } = require('./controllers/skuController');
 const { stockBySkuSeller, stockByLocationSeller } = require('./controllers/stockController');
 const { generateToken } = require('./controllers/tokopediaController');
 const tokopedia = require('./controllers/tokopediaController');
+const multer = require('multer');
+
+var uploadFile = multer({ storage: multer.memoryStorage()});
+
 // router.get('/');
 router.get('/', function (req, res, next) {
     res.render('home', {})
@@ -82,12 +86,13 @@ router.post('/api/oms/cancleOrder', mdw, cancleOrder);
 router.post('/api/oms/getSearchOrder', mdw, searchOrder);
 
 // api Items
-router.post('/getItems', getItems);
-router.post('/getDetailItem', getDetailItem);
-router.post('/api/oms/getItems', getListItems);
-router.post('/api/oms/createItem', createItem);
-router.put('/api/oms/deleteItem', deleteItem);
-router.put('/api/oms/updateItem', updateItem);
+router.post('/getItems',getItems);
+router.post('/getDetailItem',getDetailItem);
+router.post('/api/oms/getItems',getListItems);
+router.post('/api/oms/createItem',createItem);
+router.put('/api/oms/activateItem',activateItem);
+router.put('/api/oms/updateItem',updateItem);
+router.post('/api/oms/uploadItem', uploadFile.single('file'), uploadItem);
 
 // api Location
 router.get('/getLocation', getLocation);
