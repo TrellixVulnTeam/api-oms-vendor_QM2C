@@ -14,8 +14,11 @@ const {
     liveOnPo_manual,
     liveOnPoStatus_manual
 } = require('./controllers/liveOnController');
-const { getOrder, getDetailOrder, cancleOrder, searchOrder } = require('./controllers/orderController');
+<<<<<<< HEAD
 const { getItems, getDetailItem, getListItems, createItem, activateItem, updateItem, uploadItem } = require('./controllers/itemController');
+=======
+const { getOrder, getDetailOrder, cancleOrder, searchOrder, saveOrder,updateOrder } = require('./controllers/orderController');
+>>>>>>> a5152874ea9358228be2dddab00f26a98168f72d
 const { getLocation } = require('./controllers/locationController');
 const { serviceRates, generateWaybill, requestPickup, requestCancel, tracking } = require('./controllers/anterajaController');
 const { webhookChange } = require('./controllers/webhookinternalController');
@@ -84,6 +87,8 @@ router.post('/api/oms/getOrder', mdw, getOrder);
 router.post('/api/oms/getDetailOrder', mdw, getDetailOrder);
 router.post('/api/oms/cancleOrder', mdw, cancleOrder);
 router.post('/api/oms/getSearchOrder', mdw, searchOrder);
+router.post('/api/oms/saveOrder', mdw, saveOrder);
+router.put('/api/oms/updateOrder', mdw, updateOrder);
 
 // api Items
 router.post('/getItems',getItems);
