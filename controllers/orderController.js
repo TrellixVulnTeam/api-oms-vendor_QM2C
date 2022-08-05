@@ -391,52 +391,153 @@ exports.saveOrder = async (req, res, next) => {
             });
         }
 
-        if(req.body.location_id==='undefine'||!req.body.location_id){
+        
+        if(req.body.location==='undefine'||!req.body.location){
             return res.status(422).json({
-                message: "location_id shouldn't be empty"
+                message: "location shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from location where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.location]);
+            if(row.rowCount == 0){
+                console.log("test")
+                return res.status(422).json({
+                    message: "Location not found",
+                });
+            }else{
+                req.body.location_id = row.rows[0].location_id;
+            }
         }
 
-        if(req.body.client_id==='undefine'||!req.body.client_id){
+        if(req.body.client==='undefine'||!req.body.client){
             return res.status(422).json({
-                message: "client_id shouldn't be empty"
+                message: "client shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from client where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.client]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "client not found",
+                });
+            }else{
+                req.body.client_id = row.rows[0].client_id;
+            }
         }
 
-        if(req.body.status_id==='undefine'||!req.body.status_id){
+        if(req.body.status==='undefine'||!req.body.status){
             return res.status(422).json({
-                message: "status_id shouldn't be empty"
+                message: "status shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from status where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.status]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "status not found",
+                });
+            }else{
+                req.body.status_id = row.rows[0].status_id;
+            }
         }
 
-        if(req.body.delivery_type_id==='undefine'||!req.body.delivery_type_id){
+        if(req.body.delivery_type ==='undefine'||!req.body.delivery_type){
             return res.status(422).json({
-                message: "delivery_type_id shouldn't be empty"
+                message: "delivery_type shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from deliverytype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.delivery_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "delivery_type not found",
+                });
+            }else{
+                req.body.delivery_type_id = row.rows[0].delivery_type_id;
+            }
         }
 
-        if(req.body.payment_type_id==='undefine'||!req.body.payment_type_id){
+        if(req.body.payment_type==='undefine'||!req.body.payment_type){
             return res.status(422).json({
-                message: "payment_type_id shouldn't be empty"
+                message: "payment_type shouldn't be empty"
             });
         }
-
-        if(req.body.channel_id==='undefine'||!req.body.channel_id){
-            return res.status(422).json({
-                message: "channel_id shouldn't be empty"
-            });
+        else{
+            const querySelect='SELECT * from paymenttype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.payment_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "payment_type not found",
+                });
+            }else{
+                req.body.payment_type_id = row.rows[0].payment_type_id;
+            }
         }
 
-        if(req.body.stock_type_id==='undefine'||!req.body.stock_type_id){
-            return res.status(422).json({
-                message: "stock_type_id shouldn't be empty"
-            });
+        if(!req.body.distributor==='undefine'|| req.body.distributor){
+            const querySelect='SELECT * from distributor where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.distributor]);
+            if(row.rowCount > 0){
+                req.body.distributor_id = row.rows[0].distributor_id;
+            }
         }
 
-        if(req.body.order_type_id==='undefine'||!req.body.order_type_id){
+        if(!req.body.dropshipper==='undefine'|| req.body.dropshipper){
+            const querySelect='SELECT * from dropshipper where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.distributor]);
+            if(row.rowCount > 0){
+                req.body.dropshipper_id = row.rows[0].dropshipper_id;
+            }
+        }
+
+        if(req.body.channel==='undefine'||!req.body.channel){
             return res.status(422).json({
-                message: "order_type_id shouldn't be empty"
+                message: "channel shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from channel where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.channel]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "channel not found",
+                });
+            }else{
+                req.body.channel_id = row.rows[0].channel_id;
+            }
+        }
+
+        if(req.body.stock_type==='undefine'||!req.body.stock_type){
+            return res.status(422).json({
+                message: "stock_type shouldn't be empty"
+            });
+        }
+        else{
+            const querySelect='SELECT * from stocktype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.stock_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "stock_type not found",
+                });
+            }else{
+                req.body.stock_type_id = row.rows[0].stock_type_id;
+            }
+        }
+
+        if(req.body.order_type==='undefine'||!req.body.order_type){
+            return res.status(422).json({
+                message: "order_type shouldn't be empty"
+            });
+        }
+        else{
+            const querySelect='SELECT * from ordertype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.order_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "order_type not found",
+                });
+            }else{
+                req.body.order_type_id = row.rows[0].order_type_id;
+            }
         }
 
         if(req.body.recipient_name==='undefine'||!req.body.recipient_name){
@@ -731,58 +832,152 @@ exports.updateOrder = async (req, res, next) => {
             });
         }
 
-        if(req.body.order_header_id==='undefine'||!req.body.order_header_id){
+        if(req.body.location==='undefine'||!req.body.location){
             return res.status(422).json({
-                message: "order_header_id shouldn't be empty"
+                message: "location shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from location where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.location]);
+            if(row.rowCount == 0){
+                console.log("test")
+                return res.status(422).json({
+                    message: "Location not found",
+                });
+            }else{
+                req.body.location_id = row.rows[0].location_id;
+            }
         }
 
-        if(req.body.location_id==='undefine'||!req.body.location_id){
+        if(req.body.client==='undefine'||!req.body.client){
             return res.status(422).json({
-                message: "location_id shouldn't be empty"
+                message: "client shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from client where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.client]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "client not found",
+                });
+            }else{
+                req.body.client_id = row.rows[0].client_id;
+            }
         }
 
-        if(req.body.client_id==='undefine'||!req.body.client_id){
+        if(req.body.status==='undefine'||!req.body.status){
             return res.status(422).json({
-                message: "client_id shouldn't be empty"
+                message: "status shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from status where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.status]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "status not found",
+                });
+            }else{
+                req.body.status_id = row.rows[0].status_id;
+            }
         }
 
-        if(req.body.status_id==='undefine'||!req.body.status_id){
+        if(req.body.delivery_type ==='undefine'||!req.body.delivery_type){
             return res.status(422).json({
-                message: "status_id shouldn't be empty"
+                message: "delivery_type shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from deliverytype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.delivery_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "delivery_type not found",
+                });
+            }else{
+                req.body.delivery_type_id = row.rows[0].delivery_type_id;
+            }
         }
 
-        if(req.body.delivery_type_id==='undefine'||!req.body.delivery_type_id){
+        if(req.body.payment_type==='undefine'||!req.body.payment_type){
             return res.status(422).json({
-                message: "delivery_type_id shouldn't be empty"
+                message: "payment_type shouldn't be empty"
             });
         }
-
-        if(req.body.payment_type_id==='undefine'||!req.body.payment_type_id){
-            return res.status(422).json({
-                message: "payment_type_id shouldn't be empty"
-            });
+        else{
+            const querySelect='SELECT * from paymenttype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.payment_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "payment_type not found",
+                });
+            }else{
+                req.body.payment_type_id = row.rows[0].payment_type_id;
+            }
         }
 
-        if(req.body.channel_id==='undefine'||!req.body.channel_id){
-            return res.status(422).json({
-                message: "channel_id shouldn't be empty"
-            });
+        if(!req.body.distributor==='undefine'|| req.body.distributor){
+            const querySelect='SELECT * from distributor where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.distributor]);
+            if(row.rowCount > 0){
+                req.body.distributor_id = row.rows[0].distributor_id;
+            }
         }
 
-        if(req.body.stock_type_id==='undefine'||!req.body.stock_type_id){
-            return res.status(422).json({
-                message: "stock_type_id shouldn't be empty"
-            });
+        if(!req.body.dropshipper==='undefine'|| req.body.dropshipper){
+            const querySelect='SELECT * from dropshipper where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.distributor]);
+            if(row.rowCount > 0){
+                req.body.dropshipper_id = row.rows[0].dropshipper_id;
+            }
         }
 
-        if(req.body.order_type_id==='undefine'||!req.body.order_type_id){
+        if(req.body.channel==='undefine'||!req.body.channel){
             return res.status(422).json({
-                message: "order_type_id shouldn't be empty"
+                message: "channel shouldn't be empty"
             });
+        }else{
+            const querySelect='SELECT * from channel where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.channel]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "channel not found",
+                });
+            }else{
+                req.body.channel_id = row.rows[0].channel_id;
+            }
+        }
+
+        if(req.body.stock_type==='undefine'||!req.body.stock_type){
+            return res.status(422).json({
+                message: "stock_type shouldn't be empty"
+            });
+        }
+        else{
+            const querySelect='SELECT * from stocktype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.stock_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "stock_type not found",
+                });
+            }else{
+                req.body.stock_type_id = row.rows[0].stock_type_id;
+            }
+        }
+
+        if(req.body.order_type==='undefine'||!req.body.order_type){
+            return res.status(422).json({
+                message: "order_type shouldn't be empty"
+            });
+        }
+        else{
+            const querySelect='SELECT * from ordertype where name = $1' ;        
+            const row = await pg.query(querySelect,[req.body.order_type]);
+            if(row.rowCount == 0){
+                return res.status(422).json({
+                    message: "order_type not found",
+                });
+            }else{
+                req.body.order_type_id = row.rows[0].order_type_id;
+            }
         }
 
         if(req.body.recipient_name==='undefine'||!req.body.recipient_name){
