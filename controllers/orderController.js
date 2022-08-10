@@ -392,6 +392,7 @@ exports.saveOrder = async (req, res, next) => {
         }
 
         
+        // check if null
         if(req.body.location==='undefine'||!req.body.location){
             return res.status(422).json({
                 message: "location shouldn't be empty"
@@ -600,6 +601,7 @@ exports.saveOrder = async (req, res, next) => {
             });
         }
 
+        // set for if type data in database int
         if(req.body.location_id===''){
             req.body.location_id = 0
         }
@@ -663,6 +665,31 @@ exports.saveOrder = async (req, res, next) => {
         if(req.body.is_insurance===''){
             req.body.is_insurance = 0
         }
+
+        if (req.body.detail.length > 0) {
+            req.body.detail.forEach(data => {
+                if(data.item_id==='undefine'||!data.item_id){
+                    return res.status(422).json({
+                        message: "item_id in detail shouldn't be empty"
+                    });
+                }  
+                
+                if(data.order_quantity==='undefine'||!data.order_quantity){
+                    return res.status(422).json({
+                        message: "order_quantity in detail shouldn't be empty"
+                    });
+                }
+
+                if(data.unit_weight==='undefine'||!data.unit_weight){
+                    return res.status(422).json({
+                        message: "unit_weight in detail shouldn't be empty"
+                    });
+                }
+            });
+            
+        }
+
+
 
         
         let milliseconds = new Date().getTime();
@@ -761,6 +788,15 @@ exports.saveOrder = async (req, res, next) => {
             } else {
                 if (req.body.detail.length > 0) {
                     Promise.all(req.body.detail.map(async (detail) => {
+                        if(!detail.status==='undefine'||detail.status){
+                            const querySelect='SELECT * from status where code = $1' ;        
+                            const row = await pg.query(querySelect,[req.body.status]);
+                            if(row.rowCount > 0){
+                                detail.status_id = row.rows[0].status_id;
+                            }
+                        }
+                        
+                        
                         detail.order_code =  req.body.order_code;
                         detail.order_header_id = data.rows[0].order_header_id
                         detail.created_date = new Date();
@@ -768,9 +804,11 @@ exports.saveOrder = async (req, res, next) => {
                         detail.created_by = 0;
                         detail.modified_by = 0;
 
-                        const queryDetail = `UPDATE orderdetail set inventory_id = $2 ,order_header_id = $3 ,item_id = $4 ,order_quantity = $5 ,unit_price = $6 ,total_unit_price = $7 ,unit_weight = $8 ,status_id = $9 ,modified_date = $10 ,modified_by = $11 ,ref_detail_id = $12 where order_detail_id = $1 `;
+                        const queryDetail = `INSERT INTO orderdetail("order_code","inventory_id", "order_header_id", "item_id","order_quantity","unit_price","total_unit_price","unit_weight","status_id","modified_date","modified_by","created_date","created_by","ref_detail_id")
+                        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`;
+                        
                         const valuesDetail = [
-                            detail.order_detail_id,
+                            detail.order_code,
                             detail.inventory_id,
                             detail.order_header_id,
                             detail.item_id,
@@ -779,6 +817,8 @@ exports.saveOrder = async (req, res, next) => {
                             detail.total_unit_price,
                             detail.unit_weight,
                             detail.status_id,
+                            detail.created_date,
+                            detail.created_by,
                             detail.modified_date,
                             detail.modified_by,
                             detail.ref_detail_id
@@ -809,7 +849,7 @@ exports.saveOrder = async (req, res, next) => {
 
 
     }catch(err){
-       
+        console.log(err)
         return res.json({
             status:500,
             message:'Failed',
@@ -829,6 +869,12 @@ exports.updateOrder = async (req, res, next) => {
         ){
             return res.status(422).json({
                 message: "Please provide the token",
+            });
+        }
+
+        if(req.body.order_header_id==='undefine'||!req.body.order_header_id){
+            return res.status(422).json({
+                message: "order_header_id shouldn't be empty"
             });
         }
 
@@ -1040,6 +1086,7 @@ exports.updateOrder = async (req, res, next) => {
             });
         }
 
+        // set for if type data in database int
         if(req.body.location_id===''){
             req.body.location_id = 0
         }
@@ -1105,13 +1152,33 @@ exports.updateOrder = async (req, res, next) => {
         }
 
         if (req.body.detail.length > 0) {
-            req.body.detail.map( (detail) => {
-                if(detail.order_detail_id==='undefine'||!detail.order_detail_id){
+            req.body.detail.forEach(data => {
+
+                if(data.order_detail_id==='undefine'||!data.order_detail_id){
                     return res.status(422).json({
-                        message: "detail order_detail_id shouldn't be empty"
+                        message: "order_detail_id in detail shouldn't be empty"
+                    });
+                } 
+
+                if(data.item_id==='undefine'||!data.item_id){
+                    return res.status(422).json({
+                        message: "item_id in detail shouldn't be empty"
+                    });
+                }  
+                
+                if(data.order_quantity==='undefine'||!data.order_quantity){
+                    return res.status(422).json({
+                        message: "order_quantity in detail shouldn't be empty"
                     });
                 }
-            })
+
+                if(data.unit_weight==='undefine'||!data.unit_weight){
+                    return res.status(422).json({
+                        message: "unit_weight in detail shouldn't be empty"
+                    });
+                }
+            });
+            
         }
 
         
@@ -1203,6 +1270,14 @@ exports.updateOrder = async (req, res, next) => {
             } else {
                 if (req.body.detail.length > 0) {
                     Promise.all(req.body.detail.map(async (detail) => {
+                        if(!detail.status==='undefine'||detail.status){
+                            const querySelect='SELECT * from status where code = $1' ;        
+                            const row = await pg.query(querySelect,[req.body.status]);
+                            if(row.rowCount > 0){
+                                detail.status_id = row.rows[0].status_id;
+                            }
+                        }
+                        
                         detail.order_code =  req.body.order_code;
                         detail.order_header_id = data.rows[0].order_header_id
                         //detail.created_date = new Date();
@@ -1210,9 +1285,9 @@ exports.updateOrder = async (req, res, next) => {
                         detail.created_by = 0;
                         detail.modified_by = 0;
 
-                        const queryDetail = `UPDATE orderdetail SET  `;
+                        const queryDetail = `UPDATE orderdetail set inventory_id = $2 ,order_header_id = $3 ,item_id = $4 ,order_quantity = $5 ,unit_price = $6 ,total_unit_price = $7 ,unit_weight = $8 ,status_id = $9 ,modified_date = $10 ,modified_by = $11 ,ref_detail_id = $12 where order_detail_id = $1 `;
                         const valuesDetail = [
-                            detail.order_code,
+                            detail.order_detail_id,
                             detail.inventory_id,
                             detail.order_header_id,
                             detail.item_id,
@@ -1221,9 +1296,7 @@ exports.updateOrder = async (req, res, next) => {
                             detail.total_unit_price,
                             detail.unit_weight,
                             detail.status_id,
-                            detail.created_date,
                             detail.modified_date,
-                            detail.created_by,
                             detail.modified_by,
                             detail.ref_detail_id
                         ];
