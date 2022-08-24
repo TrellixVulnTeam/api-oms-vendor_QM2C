@@ -96,7 +96,7 @@ async function getToken (req,res,next)
         status : false,
         message: "failed",
         data   : "Server error"
-    });
+    }); 
   }
 }
 
