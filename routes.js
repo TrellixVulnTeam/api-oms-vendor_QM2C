@@ -15,6 +15,7 @@ const {
     liveOnPoStatus_manual
 } = require('./controllers/liveOnController');
 const { getItems, getDetailItem, getListItems, createItem, activateItem, updateItem, uploadItem } = require('./controllers/itemController');
+const { getListInventory,getDetailInventory, getDetailByProduct } = require('./controllers/inventoryController');
 const { getOrder, getDetailOrder, cancleOrder, searchOrder, saveOrder,updateOrder } = require('./controllers/orderController');
 const { getLocation } = require('./controllers/locationController');
 const { serviceRates, generateWaybill, requestPickup, requestCancel, tracking } = require('./controllers/anterajaController');
@@ -95,6 +96,11 @@ router.post('/api/oms/createItem',createItem);
 router.put('/api/oms/activateItem',activateItem);
 router.put('/api/oms/updateItem',updateItem);
 router.post('/api/oms/uploadItem', uploadFile.single('file'), uploadItem);
+
+// api Inventory
+router.post('/api/oms/getInventories', getListInventory);
+router.post('/api/oms/getDetailInventory', getDetailInventory);
+router.post('/api/oms/getInvDetailByProduct', getDetailByProduct);
 
 // api Location
 router.get('/getLocation', getLocation);
