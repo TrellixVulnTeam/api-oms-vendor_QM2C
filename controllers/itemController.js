@@ -439,6 +439,7 @@ exports.updateItem = async (req, res, next) => {
 
         let csvRowArray=[];
         let row_insert =[];
+        let row_fail =[];
         const  readable = new Readable();
 
         readable._read = () => {}
@@ -455,56 +456,66 @@ exports.updateItem = async (req, res, next) => {
             "color", "size", "minimum_stock", "weight", "length", "height", "width", "additional_expired",
             "pictures", "bundling_kitting", "bundling_dynamic", "created_date", "created_by","modified_date", "modified_by", "client_code_temporary")
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21, to_char(now(), 'YYYY-MM-DD HH24:MM:SS')::TIMESTAMP,$22,to_char(now(), 'YYYY-MM-DD HH24:MM:SS')::TIMESTAMP,$23,$24) RETURNING item_id`;
+ 
+            const client =  await conn_pg.connect(); 
+            try {                              
+                await client.query('BEGIN');
+                for (const row of csvRowArray) {  
+                    let message='';
 
-            for (const row of csvRowArray) {
-                const client =  await conn_pg.connect();   
-                let message='';
+                    if(!regex.test(row['code'])){
+                        message="Failed-SKU format incorrect";
+                        row_fail.push(Object.assign({},row,{insert:message}));
+                        continue;
+                    }
 
-                if(!regex.test(row['code'])){
-                    message="Failed-SKU format incorrect";
-                    row_insert.push(Object.assign({},row,{insert:message}));
-                    continue;
-                }
+                    //check duplicate SKU on seller
+                    const query='SELECT * FROM item where client_id = $1 and code = $2';
+                    const value = [row['client_id'], row['code']];
+                    const rowCheck = await client.query(query,value);
+                    if(rowCheck.rowCount>0){
+                        message='Failed-SKU already used';
+                        row_fail.push(Object.assign({},row,{insert:message}));
+                        continue;
+                    }
 
-                //check duplicate SKU on seller
-                const query='SELECT * FROM item where client_id = $1 and code = $2';
-                const value = [row['client_id'], row['code']];
-                const rowCheck = await conn_pg.query(query,value);
-                if(rowCheck.rowCount>0){
-                    message='Failed-SKU already used';
-                    row_insert.push(Object.assign({},row,{insert:message}));
-                    continue;
-                }
+                    const values = [parseInt(row['client_id']), (row['item_managed_id']?parseInt(row['item_managed_id']):null),row['code'], row['name'],
+                    row['barcode'],row['description'], row['packing_intruction'], row['brand'], row['category'],row['model'],
+                    row['color'], row['size'], parseInt(row['minimum_stock']), row['weight'], row['length'], row['height'], row['width'], row['additional_expired'],
+                    row['pictures'], parseInt(row['bundling_kitting']), parseInt(row['bundling_dynamic']), row['created_by'],row['created_by'], row['client_code_temporary']];
 
-                const values = [parseInt(row['client_id']), (row['item_managed_id']?parseInt(row['item_managed_id']):null),row['code'], row['name'],
-                row['barcode'],row['description'], row['packing_intruction'], row['brand'], row['category'],row['model'],
-                row['color'], row['size'], parseInt(row['minimum_stock']), row['weight'], row['length'], row['height'], row['width'], row['additional_expired'],
-                row['pictures'], parseInt(row['bundling_kitting']), parseInt(row['bundling_dynamic']), row['created_by'],row['created_by'], row['client_code_temporary']];
-
-                try {
-                    await client.query('BEGIN');
                     const result = await client.query(queryText, values);
-                    await client.query('COMMIT');
 
                     if (result.rowCount > 0){
                         row_insert.push(Object.assign({},row,result.rows[0],{insert:'success'}));
-                    }
+                    }                
                 }
-                catch(err){
-                await client.query('ROLLBACK');
-                    return res.json({
-                        status:500,
-                        message:'Error Insert data to database',
-                        response_time:durationInMilliseconds.toLocaleString() + " s",
-                        data:[]
-                    });
-                }
-                finally {
-                    client.release();
+                if(row_fail.length>0){
+                    await client.query('ROLLBACK');
+                }else{
+                    await client.query('COMMIT');
                 }
             }
-
-            if (row_insert.length > 0){
+            catch(err){
+            await client.query('ROLLBACK');
+                return res.json({
+                    status:500,
+                    message:'Error Insert data to database',
+                    response_time:durationInMilliseconds.toLocaleString() + " s",
+                    data:[]
+                });
+            }
+            finally {
+                client.release();
+            }
+            if (row_fail.length > 0){
+                return res.json({
+                    status:500,
+                    message:'Some data fail to Insert into database',
+                    response_time:durationInMilliseconds.toLocaleString() + " s",
+                    data:row_fail
+                })
+            }else{
                 return res.json({
                     status:200,
                     message:'Success',
@@ -512,13 +523,6 @@ exports.updateItem = async (req, res, next) => {
                     total_row:row_insert.length ,
                     data:row_insert
                 });
-            }else{
-                res.json({
-                    status:500,
-                    message:'Failed',
-                    response_time:durationInMilliseconds.toLocaleString() + " s",
-                    data:[]
-                })
             }
         });        
     }
