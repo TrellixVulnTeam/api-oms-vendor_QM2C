@@ -4,6 +4,8 @@ const pg = require('../dbConnection_pg');
 const crypto = require('crypto');
 const db_dev = require('../dbConnection');
 const logger = require('../logs');
+const  {Readable} = require('stream');
+const fast_csv = require("fast-csv");
 
 const getDurationInMilliseconds = (start) => {
     const NS_PER_SEC = 1e9
@@ -391,8 +393,6 @@ exports.saveOrder = async (req, res, next) => {
             });
         }
 
-        
-        // check if null
         if(req.body.location==='undefine'||!req.body.location){
             return res.status(422).json({
                 message: "location shouldn't be empty"
@@ -401,12 +401,102 @@ exports.saveOrder = async (req, res, next) => {
             const querySelect='SELECT * from location where code = $1' ;        
             const row = await pg.query(querySelect,[req.body.location]);
             if(row.rowCount == 0){
-                console.log("test")
-                return res.status(422).json({
+                 return res.status(422).json({
                     message: "Location not found",
                 });
             }else{
                 req.body.location_id = row.rows[0].location_id;
+            }
+        }
+
+        if (req.body.detail.length > 0) {
+            req.body.detail.forEach(async data => {
+                if(data.item==='undefine'||!data.item){
+                    return res.status(422).json({
+                        message: "item_id in detail shouldn't be empty"
+                    });
+                }else{
+                    const querySelectItem='SELECT * from item where code = $1 limit 1' ;        
+                    const rowItem = await pg.query(querySelectItem,[data.item]);
+                    if(rowItem.rowCount == 0){
+                        return res.status(422).json({
+                            message: "detail item code not found",
+                        });
+                    }
+                    else{
+                        const querySelectClient='SELECT * from client where id = $1 limit 1' ;        
+                        const rowClient = await pg.query(querySelectClient,[rowItem.rows[0].client_id]);
+                        if(rowClient.rowCount == 0){
+                            return res.status(422).json({
+                                message: "detail client_id not found",
+                            });
+                        }
+                        else{
+                            if (rowItem.rows[0].name !== req.body.client) {
+                                return res.status(422).json({
+                                    message: "client not same with detail.",
+                                });
+                            }
+                            
+                        }
+
+                        const querySelectInventory='SELECT * from inventory where item_id = $1 limit 1' ;        
+                        const rowInventory = await pg.query(querySelectInventory,[rowItem.rows[0].item_id]);
+                        if(rowInventory.rowCount == 0){
+                            return res.status(422).json({
+                                message: "detail inventory not found",
+                            });
+                        }
+                        else{
+                            if (data.order_quantity > rowInventory.rows[0].exist_quantity) {
+                                return res.status(422).json({
+                                    message: "detail order_quantity should be less than exist_quantity.",
+                                });
+                            }else if (req.body.location_id != rowInventory.rows[0].location_id) {
+                                return res.status(422).json({
+                                    message: "detail location not same",
+                                });
+                            }
+                        }
+
+                        
+                    }
+                }  
+                
+                if(data.order_quantity==='undefine'||!data.order_quantity){
+                    return res.status(422).json({
+                        message: "order_quantity in detail shouldn't be empty"
+                    });
+                }
+
+                if(data.unit_weight==='undefine'||!data.unit_weight){
+                    return res.status(422).json({
+                        message: "unit_weight in detail shouldn't be empty"
+                    });
+                }
+            });
+            
+        }else{
+            return res.status(422).json({
+                message: "details shouldn't be empty"
+            });
+        }
+
+        
+        // check if null
+        
+
+        if(req.body.order_code==='undefine'||!req.body.order_code){
+            return res.status(422).json({
+                message: "order_code shouldn't be empty"
+            });
+        }else{
+            const querySelect='SELECT * from orderheader where order_code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.order_code]);
+            if(row.rowCount > 1){
+                return res.status(422).json({
+                    message: "order_code already exist",
+                });
             }
         }
 
@@ -666,36 +756,15 @@ exports.saveOrder = async (req, res, next) => {
             req.body.is_insurance = 0
         }
 
-        if (req.body.detail.length > 0) {
-            req.body.detail.forEach(data => {
-                if(data.item_id==='undefine'||!data.item_id){
-                    return res.status(422).json({
-                        message: "item_id in detail shouldn't be empty"
-                    });
-                }  
-                
-                if(data.order_quantity==='undefine'||!data.order_quantity){
-                    return res.status(422).json({
-                        message: "order_quantity in detail shouldn't be empty"
-                    });
-                }
-
-                if(data.unit_weight==='undefine'||!data.unit_weight){
-                    return res.status(422).json({
-                        message: "unit_weight in detail shouldn't be empty"
-                    });
-                }
-            });
-            
-        }
+        
 
 
 
         
-        let milliseconds = new Date().getTime();
-        let code = "INV/"+dateString()+"/XX/V/"+milliseconds+"_CASE_5_PHASE_1";
-        req.body.code = code;
-        req.body.order_code = code;
+        //let milliseconds = new Date().getTime();
+        //let code = "INV/"+dateString()+"/XX/V/"+milliseconds+"_CASE_5_PHASE_1";
+        req.body.code = req.body.order_code;
+        //req.body.order_code = code;
         req.body.created_date = new Date();
         req.body.modified_date = new Date();
         req.body.created_by = 0;
@@ -1337,6 +1406,47 @@ exports.updateOrder = async (req, res, next) => {
     }
 }
 
+exports.uploadOrder = async (req, res, next) => {
+    try{
+        // if(
+        //     !req.headers.authorization||
+        //     !req.headers.authorization.startsWith('Bearer')||
+        //     !req.headers.authorization.split(' ')[1]
+        // ){
+        //     return res.status(422).json({
+        //         message: "Please provide the token",
+        //     });
+        // }
+        if (req.file == undefined) {
+            return res.status(400).send("Please upload a CSV file!");
+          }  
+        let csvRowArray=[];
+        let row_insert =[];
+        const  readable = new Readable();
+
+        readable._read = () => {}
+        readable.push(req.file.buffer)
+        readable.push(null)        
+        readable.pipe(fast_csv.parse({headers:true}))
+        .on("error",(error)=>{
+            return res.status(400).send(error.message);
+        })
+        .on("data", (data) => {csvRowArray.push(data)})
+        .on("end", async()=>{
+            console.log(data)
+        })
+    }catch(err){
+       console.log(err)
+        return res.json({
+            status:500,
+            message:'Failed',
+            response_time:durationInMilliseconds.toLocaleString() + " s",
+            data:[]
+        });
+        // next(err);
+    }
+}
+
 function dateString(){
     let date = "";
     const today = new Date();
@@ -1349,3 +1459,4 @@ function dateString(){
 
     return yyyy+mm+dd;
 }
+
