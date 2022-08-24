@@ -420,22 +420,22 @@ exports.updateItem = async (req, res, next) => {
  exports.uploadItem = async (req, res, next) => { 
     const regex=/^[A-Za-z0-9\/\.\-]+$/;
     try{
-        // if(
-        //     !req.headers.authorization||
-        //     !req.headers.authorization.startsWith('Bearer')||
-        //     !req.headers.authorization.split(' ')[1]
-        // ){
-        //     return res.status(422).json({
-        //         message: "Please provide the token",
-        //     });
-        // }
+        if(
+            !req.headers.authorization||
+            !req.headers.authorization.startsWith('Bearer')||
+            !req.headers.authorization.split(' ')[1]
+        ){
+            return res.status(422).json({
+                message: "Please provide the token",
+            });
+        }
 
         if (req.file == undefined) {
             return res.status(400).send("Please upload a CSV file!");
           }       
         
-        // const theToken = req.headers.authorization.split(' ')[1];
-        // const decoded = jwt.verify(theToken,'the-super-strong-secrect');
+        const theToken = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(theToken,'the-super-strong-secrect');
 
         let csvRowArray=[];
         let row_insert =[];
