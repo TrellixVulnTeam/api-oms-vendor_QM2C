@@ -29,6 +29,9 @@ const { createSKU } = require('./controllers/skuController');
 const { stockBySkuSeller, stockByLocationSeller } = require('./controllers/stockController');
 const { generateToken } = require('./controllers/tokopediaController');
 const tokopedia = require('./controllers/tokopediaController');
+const jubelio = require('./controllers/jubelioController');
+const bukalapak = require('./controllers/bukalapakController');
+const lazada = require('./controllers/lazadaController');
 const multer = require('multer');
 
 var uploadFile = multer({ storage: multer.memoryStorage()});
@@ -145,10 +148,40 @@ router.get('/stock/viewbylocationseller', mdw, stockByLocationSeller);
 router.post('/api/internal/giftCard', giftCard);
 
 // MP
+//TOKOPEDIA
 router.get('/api/marketplace/tokopedia/generateToken', tokopedia.generateToken);
 router.get('/api/marketplace/tokopedia/test', tokopedia.test);
 router.get('/api/marketplace/tokopedia/getOrder', tokopedia.getOrder);
 router.get('/api/marketplace/tokopedia/shopInfo', tokopedia.shopInfo);
 router.get('/api/marketplace/tokopedia/getProduct', tokopedia.getProduct);
+
+// JUBELIO
+router.get('/api/marketplace/jubelio/getToken',jubelio.getToken);
+router.get('/api/marketplace/jubelio/getProduct',jubelio.getProduct);
+router.get('/api/marketplace/jubelio/getOrders',jubelio.getOrders);
+router.post('/api/marketplace/jubelio/postInvoice',jubelio.postInvoice);
+router.post('/api/marketplace/jubelio/postAwbCourier', jubelio.postUpdateAwbCourier);
+router.post('/api/marketplace/jubelio/postPicklist',jubelio.postPicklist);
+router.post('/api/marketplace/jubelio/postShippingLabel',jubelio.printShippingLabel);
+router.post('/api/marketplace/jubelio/postsyncStocks',jubelio.postsyncStocks);
+
+// BUKALAPAK
+router.get('/api/marketplace/bukalapak/getToken',bukalapak.getToken);
+router.get('/api/marketplace/bukalapak/RefreshToken',bukalapak.getRefreshToken);
+router.get('/api/marketplace/bukalapak/getProduct',bukalapak.getProduct);
+router.get('/api/marketplace/bukalapak/getOrders',bukalapak.getOrders);
+router.get('/api/marketplace/bukalapak/getCob',bukalapak.getCob);
+router.get('/api/marketplace/bukalapak/acceptOrder',bukalapak.acceptOrder);
+router.post('/api/marketplace/bukalapak/postsyncStocks',bukalapak.updateStock);
+
+//LAZADA
+router.get('/api/marketplace/lazada/getToken',lazada.getToken);
+router.get('/api/marketplace/lazada/RefreshToken',lazada.getRefreshToken);
+router.get('/api/marketplace/lazada/getProduct',lazada.getProduct);
+router.get('/api/marketplace/lazada/getOrders',lazada.getOrders);
+router.post('/api/marketplace/lazada/acceptOrder',lazada.acceptOrder);
+router.post('/api/marketplace/lazada/requestPickup',lazada.RequestPickup);
+router.post('/api/marketplace/lazada/generateShippingLabel',lazada.generateShippingLabel);
+router.post('/api/marketplace/lazada/postsyncStocks',lazada.updateStock);
 
 module.exports = router;
