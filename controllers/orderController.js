@@ -149,15 +149,12 @@ exports.getOrder = async (req, res, next) => {
             dataResponse = response.rows
 
             await Promise.all(dataResponse.map(async (data) => {
-                const queryDetail = "SELECT  order_code as code, order_quantity as qty, unit_price, total_unit_price, unit_weight FROM orderdetail WHERE order_code = $1";
+                const queryDetail = "SELECT  order_code as code, order_quantity as qty, unit_price, total_unit_price, unit_weight FROM orderdetail WHERE order_header_id = $1";
                 let responseDetail = await pg.query(queryDetail,
                     [
                         data.order_header_id
                     ]);
-                data['detail'] = null;
-                if (responseDetail.rowCount > 0) {
-                    data['detail'] = responseDetail.rows;
-                }
+                data['detail'] = responseDetail.rows;
             }));
 
             return res.json({
