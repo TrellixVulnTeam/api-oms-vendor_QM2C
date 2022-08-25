@@ -109,8 +109,10 @@ exports.getOrder = async (req, res, next) => {
             "LEFT JOIN stocktype st ON st.stock_type_id = oh.stock_type_id " +
             "LEFT JOIN paymenttype pt ON pt.payment_type_id = oh.payment_type_id " +
             "LEFT JOIN location lc ON lc.location_id = oh.location_id " +
-            "WHERE  oh.order_date BETWEEN $1 AND $2 " +
-            "AND c.client_id = $3 AND oh.status_id = $4 AND lc.code = $5 " +
+            "WHERE  oh.order_date BETWEEN $1 AND $2 "+
+            "AND c.client_id = $3"+ 
+            "AND oh.status_id = $4" + 
+            "AND lc.code = $5 " +
             "OFFSET $6 LIMIT $7";
 
         let response = await pg.query(query,
@@ -127,8 +129,9 @@ exports.getOrder = async (req, res, next) => {
         const queryTotal = "SELECT count(oh.order_header_id) as total " +
             "FROM orderheader oh " +
             "LEFT JOIN client c ON c.client_id = oh.client_id " +
+            "LEFT JOIN location lc ON lc.location_id = oh.location_id " +
             "WHERE  oh.order_date BETWEEN $1 AND $2 " +
-            "AND c.client_id = $3 AND oh.status_id = $4 AND oh.location_id = $5 ";
+            "AND c.client_id = $3 AND oh.status_id = $4 AND lc.code = $5 ";
 
         let responseTotal = await pg.query(queryTotal,
             [
@@ -136,7 +139,7 @@ exports.getOrder = async (req, res, next) => {
                 date_to,
                 shop_id,
                 status,
-                warehouse
+                warehouse_id
             ]);
         let total = responseTotal.rows[0].total;
 
