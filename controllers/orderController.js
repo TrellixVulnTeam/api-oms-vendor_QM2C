@@ -155,6 +155,8 @@ exports.getOrder = async (req, res, next) => {
                         data.order_header_id
                     ]);
                 data['detail'] = responseDetail.rows;
+                let warehouse = data.warehouse.replaceAll(/\r?\n|\r/g,'');
+                data.warehouse = warehouse;
             }));
 
             return res.json({
