@@ -109,7 +109,7 @@ exports.getOrder = async (req, res, next) => {
             "LEFT JOIN stocktype st ON st.stock_type_id = oh.stock_type_id " +
             "LEFT JOIN paymenttype pt ON pt.payment_type_id = oh.payment_type_id " +
             "LEFT JOIN location lc ON lc.location_id = oh.location_id " +
-            "WHERE  oh.order_date BETWEEN $1 AND $2 "+
+            "WHERE  oh.created_date BETWEEN $1 AND $2 "+
             "AND c.code = $3"+ 
             "AND oh.status_id = $4" + 
             "AND lc.code = $5 " +
@@ -130,7 +130,7 @@ exports.getOrder = async (req, res, next) => {
             "FROM orderheader oh " +
             "LEFT JOIN client c ON c.client_id = oh.client_id " +
             "LEFT JOIN location lc ON lc.location_id = oh.location_id " +
-            "WHERE  oh.order_date BETWEEN $1 AND $2 " +
+            "WHERE  oh.created_date BETWEEN $1 AND $2 " +
             "AND c.code = $3 AND oh.status_id = $4 AND lc.code = $5 ";
 
         let responseTotal = await pg.query(queryTotal,
