@@ -463,7 +463,7 @@ async function getOrders (req,res,next)
                                 let isInOrders = await checkOrderCode(orderCode);
                                 if(!isInOrders)
                                 {
-                                    let checkMappingLocations = await checkShopLocation(clientId);
+                                    let checkMappingLocations = await checkShopLocation(shopConfigId);
                                     if(checkMappingLocations)
                                     {
                                         checkMappingLocations.forEach(async function(checkMappingLocation)
@@ -1662,7 +1662,7 @@ async function storeOrders(orderCode, clientId, channelId, shopConfigurationId, 
 //cek data
 async function checkShopLocation(shopConfigId)
 {
-    let sql = await conn_pg.query("SELECT chanloc.client_id, chanloc.location_id, loc.code, loc.name, c.name FROM channellocation chanloc JOIN location loc ON chanloc.location_id = loc.location_id JOIN channel c on chanloc.channel_id = c.channel_id WHERE chanloc.client_id = 1 and c.name ='LAZADA'",[shopConfigId]);
+    let sql = await conn_pg.query("SELECT s.client_id, sl.location_channel, l.name, l.code, l.location_id FROM shoplocation sl LEFT JOIN location l ON sl.location_id = l.location_id LEFT JOIN shopconfiguration s ON sl.shop_configuration_id = s.shop_configuration_id WHERE sl.shop_configuration_id = $1",[shopConfigId]);
     var results = sql.rows;
     if(sql.rowCount > 0)
     {
