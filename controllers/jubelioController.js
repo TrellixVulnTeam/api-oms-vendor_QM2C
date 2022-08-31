@@ -281,145 +281,145 @@ async function getOrders (req,res,next)
                         var data = response.data;
                         var allGetOrders = data.data;
                         var totalCount = data.totalCount;
-                        console.log(allGetOrders);
-                        // do {
-                        //     var isNextPage = getNextPage(page, pageSize, totalCount);
-                        //     if (isNextPage == true) {             
-                        //         page++;
-                        //         // console.log(payload);
-                        //         var axios = require('axios');
-                        //         var config = {
-                        //             method: 'GET',
-                        //             url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
-                        //             headers: { 
-                        //                 'Content-Type' : 'application/json',
-                        //                 'authorization': rest.token
-                        //             },
-                        //             validateStatus: () => true
-                        //         };
-                        //         axios(config)
-                        //         .then(async (response2)=> 
-                        //         {
-                        //             var data2 = response2.data;
-                        //             if(response2.status == 200)
-                        //             {
-                        //                 isNextPage = getNextPage(page, pageSize, totalCount);
-                        //                 var nextArraygetOrders = data2.data;
-                        //                 allGetOrders = arrayUnique(allGetOrders.concat(nextArraygetOrders));
-                        //             } else {
-                        //                 res.json({
-                        //                     status : false,
-                        //                     message: "failed",
-                        //                     data   : response2.data
-                        //                 });
-                        //             }
-                        //         });
-                        //     } else {
-                        //         break;
-                        //     }
-                        // } while (isNextPage == true);
+                        // console.log(allGetOrders);
+                        do {
+                            var isNextPage = getNextPage(page, pageSize, totalCount);
+                            if (isNextPage == true) {             
+                                page++;
+                                // console.log(payload);
+                                var axios = require('axios');
+                                var config = {
+                                    method: 'GET',
+                                    url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
+                                    headers: { 
+                                        'Content-Type' : 'application/json',
+                                        'authorization': rest.token
+                                    },
+                                    validateStatus: () => true
+                                };
+                                axios(config)
+                                .then(async (response2)=> 
+                                {
+                                    var data2 = response2.data;
+                                    if(response2.status == 200)
+                                    {
+                                        isNextPage = getNextPage(page, pageSize, totalCount);
+                                        var nextArraygetOrders = data2.data;
+                                        allGetOrders = arrayUnique(allGetOrders.concat(nextArraygetOrders));
+                                    } else {
+                                        res.json({
+                                            status : false,
+                                            message: "failed",
+                                            data   : response2.data
+                                        });
+                                    }
+                                });
+                            } else {
+                                break;
+                            }
+                        } while (isNextPage == true);
                         
-                        // allGetOrders.forEach(function(allGetOrder)
-                        // {  
-                        //     var salesOrderNo = allGetOrder.salesorder_no;
-                        //     var sourceName   = allGetOrder.source_name;
-                        //     var orderCode    = salesOrderNo;                        
-                        //     var is_prefix = salesOrderNo.indexOf("-");
-                        //     if(is_prefix) {
-                        //         var explodeOrderCode = salesOrderNo.split("-");
-                        //         orderCode = explodeOrderCode[1];
-                        //     }
-                        //     var salesOrderId = allGetOrder.salesorder_id;
-                        //     var axios = require('axios');
-                        //     var config = {
-                        //         method: 'GET',
-                        //         url   : "https://api.jubelio.com/sales/orders/"+salesOrderId,
-                        //         headers: { 
-                        //             'Content-Type' : 'application/json',
-                        //             'authorization': rest.token
-                        //         },
-                        //         validateStatus: () => true
-                        //     };
-                        //     axios(config)
-                        //     .then(async (responseSo)=> 
-                        //     {
-                        //         var getSalesOrder = responseSo.data;
-                        //         if(responseSo.status == 200)
-                        //         {
-                        //             var locationIdJubelio = getSalesOrder.location_id;
-                        //             let checkMappingLocations = await checkShopLocation(locationIdJubelio,rest.shop_configuration_id);
-                        //             if(checkMappingLocations)
-                        //             {
-                        //                 checkMappingLocations.forEach(async function(checkMappingLocation)
-                        //                 {                                  
-                        //                     let isInOrders = await checkOrderCode(orderCode);
-                        //                     if(!isInOrders)
-                        //                     {
-                        //                         if(!rest.fs_id)
-                        //                         {
-                        //                             // console.log(getSalesOrder);
-                        //                             if (rest.partial_integration == 1) 
-                        //                             {
-                        //                                 let checkMappingChannel = await findMappingChannelByShopConfigId(rest.shop_configuration_id,sourceName);
+                        allGetOrders.forEach(function(allGetOrder)
+                        {  
+                            var salesOrderNo = allGetOrder.salesorder_no;
+                            var sourceName   = allGetOrder.source_name;
+                            var orderCode    = salesOrderNo;                        
+                            var is_prefix = salesOrderNo.indexOf("-");
+                            if(is_prefix) {
+                                var explodeOrderCode = salesOrderNo.split("-");
+                                orderCode = explodeOrderCode[1];
+                            }
+                            var salesOrderId = allGetOrder.salesorder_id;
+                            var axios = require('axios');
+                            var config = {
+                                method: 'GET',
+                                url   : "https://api.jubelio.com/sales/orders/"+salesOrderId,
+                                headers: { 
+                                    'Content-Type' : 'application/json',
+                                    'authorization': rest.token
+                                },
+                                validateStatus: () => true
+                            };
+                            axios(config)
+                            .then(async (responseSo)=> 
+                            {
+                                var getSalesOrder = responseSo.data;
+                                if(responseSo.status == 200)
+                                {
+                                    var locationIdJubelio = getSalesOrder.location_id;
+                                    let checkMappingLocations = await checkShopLocation(locationIdJubelio,rest.shop_configuration_id);
+                                    if(checkMappingLocations)
+                                    {
+                                        checkMappingLocations.forEach(async function(checkMappingLocation)
+                                        {                                  
+                                            let isInOrders = await checkOrderCode(orderCode);
+                                            if(!isInOrders)
+                                            {
+                                                if(!rest.fs_id)
+                                                {
+                                                    // console.log(getSalesOrder);
+                                                    if (rest.partial_integration == 1) 
+                                                    {
+                                                        let checkMappingChannel = await findMappingChannelByShopConfigId(rest.shop_configuration_id,sourceName);
 
-                        //                                 if (checkMappingChannel) 
-                        //                                 {
-                        //                                     let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
-                        //                                     console.log(callStore);
-                        //                                 }
-                        //                             } 
-                        //                             else 
-                        //                             {    
-                        //                                 let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
-                        //                                 console.log(callStore);
-                        //                             }   
-                        //                         }
-                        //                         else
-                        //                         {
-                        //                             var storeId = getSalesOrder.store_id;
+                                                        if (checkMappingChannel) 
+                                                        {
+                                                            let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
+                                                            console.log(callStore);
+                                                        }
+                                                    } 
+                                                    else 
+                                                    {    
+                                                        let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
+                                                        console.log(callStore);
+                                                    }   
+                                                }
+                                                else
+                                                {
+                                                    var storeId = getSalesOrder.store_id;
 
-                        //                             if (storeId == rest.fs_id) 
-                        //                             {
-                        //                                 let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
-                        //                                 console.log(callStore);
-                        //                             }
-                        //                         }
-                        //                     }
-                        //                     else{
-                        //                         res.json({
-                        //                             status : false,
-                        //                             message: "failed",
-                        //                             data   : "order code "+orderCode+" already exist"
-                        //                         });
-                        //                     }
-                        //                 });       
-                        //             }
-                        //             else{
-                        //                 res.json({
-                        //                     status : false,
-                        //                     message: "failed",
-                        //                     data   : "Please Check Your Mapping Location"
-                        //                 });
-                        //             }         
-                        //         }
-                        //         else
-                        //         {
-                        //             res.json({
-                        //                 status : false,
-                        //                 message: "failed",
-                        //                 data   : responseSo.data
-                        //             });
-                        //         }
-                        //     })
-                        //     .catch(function (error) 
-                        //     {
-                        //         res.json({
-                        //             status : false,
-                        //             message: "failed",
-                        //             data   : error
-                        //         });
-                        //     });
-                        // });
+                                                    if (storeId == rest.fs_id) 
+                                                    {
+                                                        let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
+                                                        console.log(callStore);
+                                                    }
+                                                }
+                                            }
+                                            else{
+                                                res.json({
+                                                    status : false,
+                                                    message: "failed",
+                                                    data   : "order code "+orderCode+" already exist"
+                                                });
+                                            }
+                                        });       
+                                    }
+                                    else{
+                                        res.json({
+                                            status : false,
+                                            message: "failed",
+                                            data   : "Please Check Your Mapping Location"
+                                        });
+                                    }         
+                                }
+                                else
+                                {
+                                    res.json({
+                                        status : false,
+                                        message: "failed",
+                                        data   : responseSo.data
+                                    });
+                                }
+                            })
+                            .catch(function (error) 
+                            {
+                                res.json({
+                                    status : false,
+                                    message: "failed",
+                                    data   : error
+                                });
+                            });
+                        });
                     }
                     else
                     {
