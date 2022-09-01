@@ -346,8 +346,10 @@ async function getOrders (req,res,next)
                                 var getSalesOrder = responseSo.data;
                                 if(responseSo.status == 200)
                                 {
+                                    // console.log(getSalesOrder)
                                     var locationIdJubelio = getSalesOrder.location_id;
                                     let checkMappingLocations = await checkShopLocation(locationIdJubelio,rest.shop_configuration_id);
+                                    // console.log(checkMappingLocations);
                                     if(checkMappingLocations)
                                     {
                                         checkMappingLocations.forEach(async function(checkMappingLocation)
@@ -355,41 +357,84 @@ async function getOrders (req,res,next)
                                             let isInOrders = await checkOrderCode(orderCode);
                                             if(!isInOrders)
                                             {
-                                                if(!rest.fs_id)
-                                                {
-                                                    // console.log(getSalesOrder);
-                                                    if (rest.partial_integration == 1) 
+                                                let isStockTypes = await checkStockType(rest.client_id,stockType);
+                                                if(isStockTypes){
+                                                    isStockTypes.forEach(async function(isStockType)
                                                     {
-                                                        let checkMappingChannel = await findMappingChannelByShopConfigId(rest.shop_configuration_id,sourceName);
-
-                                                        if (checkMappingChannel) 
-                                                        {
-                                                            let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
-                                                            console.log(callStore);
+                                                        var stockTypeId = isStockType.stock_type_id;
+                                                        if (!getSalesOrder.shipper) {
+                                                            if (sourceName == "LAZADA") {
+                                                                var courier = "Lazada Express";
+                                                            } else {
+                                                                var courier = "JNE REG";
+                                                            }
+                                                        } else {
+                                                            var courier = getSalesOrder.shipper;
                                                         }
-                                                    } 
-                                                    else 
-                                                    {    
-                                                        let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
-                                                        console.log(callStore);
-                                                    }   
+
+                                                        let isCourierMapped = await findCourier(courier, channelName); 
+                                                        if(isCourierMapped)
+                                                        {
+                                                            isCourierMapped.forEach(async function(CourierMapped)
+                                                            {  
+                                                                var items = getSalesOrder.items;
+                                                                let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
+                                                                console.log(callStore);
+                                                                // if(callStore)
+                                                                // {    
+                                                                //     messageSuccessOrder = {
+                                                                //         status : 200,
+                                                                //         message : "Success Create Order",
+                                                                //         detail : {
+                                                                //             data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
+                                                                //         }
+                                                                //     };
+                                                                //     // console.log(messageSuccessOrder);
+                                                                //     res.json({messageSuccessOrder});
+                                                                // }
+                                                                // else{
+                                                                //     pg.query("ROLLBACK");
+                                                                //     var messageFailedDetail = {
+                                                                //         status : 500,
+                                                                //         message : "Failed to create order",
+                                                                //         detail : {
+                                                                //             data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
+                                                                //         }
+                                                                //     };
+                                                                //     // return messageFailedDetail;
+                                                                //     res.json({messageFailedDetail});
+                                                                // }
+                                                            });
+                                                        } 
+                                                        else{
+                                                            res.json({
+                                                                status : 500,
+                                                                message : "Failed to create order",
+                                                                detail : {
+                                                                    data : "ORDERCODE "+orderCode+" FAILED TO CREATE BECAUSE, COURIER "+courier+" NOT FOUND IN MAPPING COURIER"
+                                                                }
+                                                            });
+                                                        }
+                                                    });
                                                 }
                                                 else
                                                 {
-                                                    var storeId = getSalesOrder.store_id;
-
-                                                    if (storeId == rest.fs_id) 
-                                                    {
-                                                        let callStore = await storeOrders(getSalesOrder, rest, channelName, stockType, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType);
-                                                        console.log(callStore);
-                                                    }
+                                                    res.json({
+                                                        status : 500,
+                                                        message : "Stock Type Not Mapping",
+                                                        detail : {
+                                                            data : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
+                                                        }
+                                                    });
                                                 }
                                             }
                                             else{
                                                 res.json({
-                                                    status : false,
-                                                    message: "failed",
-                                                    data   : "order code "+orderCode+" already exist"
+                                                    status : 500,
+                                                    message: "Order Code Already",
+                                                    detail : {
+                                                        data : "GET ORDERS - order Code "+orderCode+" already exist"
+                                                    }
                                                 });
                                             }
                                         });       
@@ -1552,105 +1597,106 @@ async function storeItems(variant, shop_configuration_id, client_id,res)
     }));
 }
 
-async function storeOrders(getSalesOrder, Configuration, channelName, stockType, salesOrderNo, orderCode, location, sourceName, orderType)
+/*async function storeOrders(getSalesOrder, items, Configuration, channelName, stockType, salesOrderNo, orderCode, location, sourceName, orderType, res, req, next)
 {
-    let pg = await conn_pg.connect();
-    try
+    var messageSuccessOrder = {};
+    var itemModel           = [];
+    var noItemModel         = {};
+    var noItemModelNull     = {};
+    var noItemMapping       = {};
+    var shopConfigurationId = Configuration.shop_configuration_id;
+    var clientId            = Configuration.client_id;
+    var channelId           = Configuration.channel_id;
+    var locationId          = location.locationid;
+    var items               = getSalesOrder.items;
+    var notes               = channelName+"-"+sourceName;
+    var remark              = getSalesOrder.note;
+    var salesOrderNo        = salesOrderNo.replace(/ /g, "");
+    var orderCode           = orderCode.replace(/ /g, "");
+    var stockSource         = "GOOD STOCK";
+
+    if (getSalesOrder.is_cod == true) {
+        var paymentType = "COD";
+
+        if (sourceName == "SHOPEE") {
+            var codPrice = parseInt(getSalesOrder.total_amount_mp);
+        } else if (sourceName == "LAZADA") {
+            var codPrice = parseInt(getSalesOrder.grand_total + getSalesOrder.buyer_shipping_cost);
+        } else {
+            var codPrice = parseInt(getSalesOrder.grand_total);
+        }
+    } else {
+        var paymentType = "NON COD";
+        var codPrice = 0;
+    }
+
+    var paymentId = 0;
+    if(paymentType == "COD")
     {
-        await pg.query('BEGIN')
-        var messageSuccessOrder = {};
-        var itemModel           = [];
-        var noItemModel         = {};
-        var noItemModelNull     = {};
-        var noItemMapping       = {};
-        var shopConfigurationId = Configuration.shop_configuration_id;
-        var clientId            = Configuration.client_id;
-        var channelId           = Configuration.channel_id;
-        var locationId          = location.locationid;
-        var items               = getSalesOrder.items;
-        var notes               = channelName+"-"+sourceName;
-        var remark              = getSalesOrder.note;
-        var salesOrderNo        = salesOrderNo.replace(/ /g, "");
-        var orderCode           = orderCode.replace(/ /g, "");
-        var stockSource         = "GOOD STOCK";
+        paymentId = 1;
+    }
+    else
+    {
+        paymentId = 2;
+    }
 
-        if (getSalesOrder.is_cod == true) {
-            var paymentType = "COD";
-
-            if (sourceName == "SHOPEE") {
-                var codPrice = parseInt(getSalesOrder.total_amount_mp);
-            } else if (sourceName == "LAZADA") {
-                var codPrice = parseInt(getSalesOrder.grand_total + getSalesOrder.buyer_shipping_cost);
-            } else {
-                var codPrice = parseInt(getSalesOrder.grand_total);
-            }
+    if (!getSalesOrder.shipper) {
+        if (sourceName == "LAZADA") {
+            var courier = "Lazada Express";
         } else {
-            var paymentType = "NON COD";
-            var codPrice = 0;
+            var courier = "JNE REG";
         }
+    } else {
+        var courier = getSalesOrder.shipper;
+    }
 
-        var paymentId = 0;
-        if(paymentType == "COD")
+    let isStockTypes = await checkStockType(clientId,stockType);
+    if(isStockTypes){
+        isStockTypes.forEach(async function(isStockType)
         {
-            paymentId = 1;
-        }
-        else
-        {
-            paymentId = 2;
-        }
-
-        if (!getSalesOrder.shipper) {
-            if (sourceName == "LAZADA") {
-                var courier = "Lazada Express";
-            } else {
-                var courier = "JNE REG";
-            }
-        } else {
-            var courier = getSalesOrder.shipper;
-        }
-
-        let isStockTypes = await checkStockType(clientId,stockType);
-        if(isStockTypes){
-            isStockTypes.forEach(async function(isStockType)
+            var stockTypeId = isStockType.stock_type_id;
+            if(orderType == 'Sales Order')
             {
-                var stockTypeId = isStockType.stock_type_id;
-                if(orderType == 'Sales Order')
-                {
-                    var orderTypeId = 1;
-                }
-                let isCourierMapped = await findCourier(courier, channelName); 
-                if(isCourierMapped)
-                {
-                    isCourierMapped.forEach(async function(CourierMapped)
-                    {  
-                        if(CourierMapped)
+                var orderTypeId = 1;
+            }
+            let isCourierMapped = await findCourier(courier, channelName); 
+            if(isCourierMapped)
+            {
+                isCourierMapped.forEach(async function(CourierMapped)
+                {  
+                    if(CourierMapped)
+                    {
+                        var discountPoint    = parseInt(getSalesOrder.total_disc);
+                        var discountSeller   = 0;
+                        var discountPlatform = 0;
+                        var shippingPrice    = parseInt(getSalesOrder.shipping_cost);
+                        var date             = getSalesOrder.created_date.replace('T', " ");
+                        var timeStamp        = date.replace('.991Z', "");
+                        var name             = getSalesOrder.shipping_full_name;
+                        var phone            = "-";
+                        if(getSalesOrder.shipping_phone)
                         {
-                            var discountPoint    = parseInt(getSalesOrder.total_disc);
-                            var discountSeller   = 0;
-                            var discountPlatform = 0;
-                            var shippingPrice    = parseInt(getSalesOrder.shipping_cost);
-                            var date             = getSalesOrder.created_date.replace('T', " ");
-                            var timeStamp        = date.replace('.991Z', "");
-                            var name             = getSalesOrder.shipping_full_name;
-                            var phone            = "-";
-                            if(getSalesOrder.shipping_phone)
-                            {
-                                phone = getSalesOrder.shipping_phone;
-                            }
+                            phone = getSalesOrder.shipping_phone;
+                        }
 
-                            var address       = getSalesOrder.shipping_address+", "+getSalesOrder.shipping_area+", "+getSalesOrder.shipping_city+", "+getSalesOrder.shipping_province+", "+getSalesOrder.shipping_country;
-                            var email         = null;
-                            var district      = getSalesOrder.shipping_area;
-                            var city          = getSalesOrder.shipping_city;
-                            var province      = getSalesOrder.shipping_province;
-                            var country       = getSalesOrder.shipping_country;
-                            var postal_code   = getSalesOrder.shipping_post_code;
-                            var refOrderId    = getSalesOrder.salesorder_id;
-                            var bookingNumber = getSalesOrder.tracking_no;
-                            var waybillNumber = "";
-                            var totalPrice    = parseInt(getSalesOrder.grand_total);
-                            var remarks       = getSalesOrder.customer_name+" - "+salesOrderNo+" - "+remark;
-                            // console.log(CourierMapped);
+                        var address       = getSalesOrder.shipping_address+", "+getSalesOrder.shipping_area+", "+getSalesOrder.shipping_city+", "+getSalesOrder.shipping_province+", "+getSalesOrder.shipping_country;
+                        var email         = null;
+                        var district      = getSalesOrder.shipping_area;
+                        var city          = getSalesOrder.shipping_city;
+                        var province      = getSalesOrder.shipping_province;
+                        var country       = getSalesOrder.shipping_country;
+                        var postal_code   = getSalesOrder.shipping_post_code;
+                        var refOrderId    = getSalesOrder.salesorder_id;
+                        var bookingNumber = getSalesOrder.tracking_no;
+                        var waybillNumber = "";
+                        var totalPrice    = parseInt(getSalesOrder.grand_total);
+                        var remarks       = getSalesOrder.customer_name+" - "+salesOrderNo+" - "+remark;
+                        
+                        // console.log(CourierMapped);
+                        let pg = await conn_pg.connect();
+                        try
+                        {
+                            await pg.query('BEGIN')
                             let insert = await insertIntoHeaderOrder(orderCode, clientId, channelId, shopConfigurationId, stockTypeId, orderTypeId, CourierMapped.delivery_type_id, locationId, refOrderId, bookingNumber, waybillNumber, totalPrice, name, phone, address, email, district, city, province, country, postal_code, timeStamp, discountPoint, discountSeller, discountPlatform, shippingPrice, paymentId, codPrice, remarks, notes, stockSource);
                             if(insert)
                             {    
@@ -1752,50 +1798,238 @@ async function storeOrders(getSalesOrder, Configuration, channelName, stockType,
                             }
                             else{
                                 pg.query("ROLLBACK");
-                                var messageAlreadyExist = {
+                                res.json({
                                     status : 500,
                                     message : "Failed to create order",
                                     detail : {
                                         data : "ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
                                     }
-                                };
-                                return messageAlreadyExist;
+                                });
                             }
+                        } 
+                        catch (error) 
+                        {
+                            // transaction.rollback();
+                            res.json({
+                                status : false,
+                                message: "failed",
+                                data   : "Server error"
+                            });
                         }
-                    });
-                } 
-                else{
-                    var messageAlreadyExist = {
-                        status : 500,
-                        message : "Failed to create order",
-                        detail : {
-                            data : "ORDERCODE "+orderCode+" FAILED TO CREATE BECAUSE, COURIER "+courier+" NOT FOUND IN MAPPING COURIER"
-                        }
-                    };
-                    console.log(messageAlreadyExist);
-                }
-            });
+                    }
+                });
+            } 
+            else{
+                res.json({
+                    status : 500,
+                    message : "Failed to create order",
+                        data : "ORDERCODE "+orderCode+" FAILED TO CREATE BECAUSE, COURIER "+courier+" NOT FOUND IN MAPPING COURIER"
+                });
+            }
+        });
+    }
+    else
+    {
+        res.json({
+            status : 500,
+            message : "Stock Type Not Mapping",
+            detail : {
+                data : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
+            }
+        });
+    }
+}*/
+
+async function storeOrders(getSalesOrder, items, Configuration, channelName, stockType, salesOrderNo, orderCode, location, sourceName, orderType, CourierMapped, req, res, next)
+{
+    const pg = await conn_pg.connect();
+    try
+    {
+        await pg.query('BEGIN')
+        var messageSuccessOrder = {};
+        var messageAlreadyExist = {};
+        var messageNullItemId   = [];
+        var shopConfigurationId = Configuration.shop_configuration_id;
+        var clientId            = Configuration.client_id;
+        var channelId           = Configuration.channel_id;
+        var locationId          = location.locationid;
+        var notes               = channelName+"-"+sourceName;
+        var remark              = getSalesOrder.note;
+        var salesOrderNo        = salesOrderNo.replace(/ /g, "");
+        var orderCode           = orderCode.replace(/ /g, "");
+        var stockSource         = "GOOD STOCK";
+        if(orderType == 'Sales Order')
+        {
+            var orderTypeId = 1;
+        }
+
+        if (getSalesOrder.is_cod == true) {
+            var paymentType = "COD";
+
+            if (sourceName == "SHOPEE") {
+                var codPrice = parseInt(getSalesOrder.total_amount_mp);
+            } else if (sourceName == "LAZADA") {
+                var codPrice = parseInt(getSalesOrder.grand_total + getSalesOrder.buyer_shipping_cost);
+            } else {
+                var codPrice = parseInt(getSalesOrder.grand_total);
+            }
+        } else {
+            var paymentType = "NON COD";
+            var codPrice = 0;
+        }
+
+        var paymentId = 0;
+        if(paymentType == "COD")
+        {
+            paymentId = 1;
         }
         else
         {
-            var messageAlreadyExist = {
+            paymentId = 2;
+        }
+        
+        var discountPoint    = parseInt(getSalesOrder.total_disc);
+        var discountSeller   = 0;
+        var discountPlatform = 0;
+        var shippingPrice    = parseInt(getSalesOrder.shipping_cost);
+        var date             = getSalesOrder.created_date.replace('T', " ");
+        var timeStamp        = date.replace('.991Z', "");
+        var recipientName    = getSalesOrder.shipping_full_name;
+        var recipientPhone   = "-";
+        if(getSalesOrder.shipping_phone)
+        {
+            recipientPhone = getSalesOrder.shipping_phone;
+        }
+
+        var recipientAddress    = getSalesOrder.shipping_address+", "+getSalesOrder.shipping_area+", "+getSalesOrder.shipping_city+", "+getSalesOrder.shipping_province+", "+getSalesOrder.shipping_country;
+        var recipientEmail      = null;
+        var recipientDistrict   = getSalesOrder.shipping_area;
+        var recipientCity       = getSalesOrder.shipping_city;
+        var recipientProvince   = getSalesOrder.shipping_province;
+        var recipientCountry    = getSalesOrder.shipping_country;
+        var recipientPostalCode = getSalesOrder.shipping_post_code;
+        var refOrderId          = getSalesOrder.salesorder_id;
+        var bookingNumber = getSalesOrder.tracking_no;
+        var waybillNumber = "";
+        var totalPrice    = parseInt(getSalesOrder.grand_total);
+        var remarks       = getSalesOrder.customer_name+" - "+salesOrderNo+" - "+remark;
+        var createdName = "Automatic By System API";
+
+        let data = await pg.query("INSERT INTO orderheader(order_code, location_id, client_id, shop_configuration_id, status_id, delivery_type_id, payment_type_id, channel_id, stock_type_id, order_type_id, ref_order_id, code, order_date, booking_number, waybill_number, recipient_name, recipient_phone, recipient_email, recipient_address, recipient_district, recipient_city, recipient_province, recipient_country, recipient_postal_code, latitude, longitude, total_koli, shipping_price, total_price, cod_price, dfod_price, stock_source, notes, remark, created_date, modified_date, created_by, modified_by, created_name, store_name, discount, discount_shipping, discount_point, discount_seller, discount_platform, total_product_price) VALUES ($1, $2, $3, $4, 70, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 0, 0, 0, $24, $25, $26, 0, $27, $28, $29, NOW(), NOW(), 0, 0, $30, $31, 0, 0, $32, $33, $34, 0) RETURNING order_header_id, status_id",[orderCode, locationId, clientId, shopConfigurationId, CourierMapped.delivery_type_id, paymentId, channelId, stockType, orderTypeId, refOrderId, orderCode, timeStamp, bookingNumber, waybillNumber, recipientName, recipientPhone, recipientEmail, recipientAddress, recipientDistrict, recipientCity, recipientProvince, recipientCountry, recipientPostalCode, shippingPrice, totalPrice, codPrice, stockSource, notes, remarks, createdName, Configuration.shop_name, discountPoint, discountSeller, discountPlatform]);
+        var insert = data.rows;
+        if(data.rowCount > 0)
+        {
+            insert.forEach(async function(orderHeader)
+            {       
+                let jobpushorders = await pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[orderHeader.order_header_id]);
+                if(jobpushorders.rowCount > 0)
+                {
+                    let orderhistorys = await pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, NOW(), NOW(), 0, 0)",[orderHeader.order_header_id, orderHeader.status_id, createdName]);
+                    if(orderhistorys.rowCount > 0)
+                    {
+                        var variantId = null;
+                        var itemCode  = null;
+                        items.forEach(async function(item)
+                        { 
+                            var fbm = item.fbm;
+                            if(fbm != "fbl")
+                            {  
+                                variantId = item.item_id;
+                                itemCode = item.item_code;
+                                let isInMappings = await checkMappingVariant(variantId,shopConfigurationId);   
+                                if(isInMappings)   
+                                {  
+                                    isInMappings.forEach(async function(isInMapping)
+                                    {  
+                                        // console.log(isInMapping)
+                                        if(isInMapping.item_id != null)
+                                        {
+                                            var unitWeight     = parseInt(item.weight_in_gram);
+                                            var unitPrice      = parseInt(item.original_price);
+                                            var totalUnitPrice = parseInt(item.qty_in_base*item.original_price);
+                                            var orderQuantity  = parseInt(item.qty_in_base);
+                                            let insertDetails  = await pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 0, 0)",[orderCode, orderHeader.order_header_id, isInMapping.item_id, orderQuantity, unitPrice, totalUnitPrice, unitWeight, orderHeader.status_id]);
+                                            if(insertDetails.rowCount > 0)
+                                            { 
+                                                await pg.query('COMMIT');
+                                                messageSuccessOrder = {
+                                                    status : 200,
+                                                    message : "Success Create Order",
+                                                    detail : {
+                                                        data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
+                                                    }
+                                                };
+                                                return messageSuccessOrder;
+                                            }
+                                            else{
+                                                await pg.query("ROLLBACK");
+                                                var messageFailedDetail = {
+                                                    status : 500,
+                                                    message : "Failed to create order",
+                                                    detail : {
+                                                        data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
+                                                    }
+                                                };
+                                                return messageFailedDetail;
+                                            }
+                                        } 
+                                        else
+                                        {
+                                            await pg.query("ROLLBACK");
+                                            // console.log(isInMapping.product_code)
+                                            messageAlreadyExist = {
+                                                status : 500,
+                                                message : "Failed to create order",
+                                                detail : "GET ORDERS - Itemcode "+isInMapping.product_code+" Not Mapping Item_id"
+                                            };
+                                            // messageNullItemId.push(messageAlreadyExist);
+                                            // console.log(messageAlreadyExist);
+                                            return messageFailedDetail;
+                                        }
+                                    });
+                                }
+                                else
+                                {
+                                    await pg.query("ROLLBACK");
+                                    messageAlreadyExist = {
+                                        status : 500,
+                                        message : "Failed to create order",
+                                        detail : {
+                                            data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
+                                        }
+                                    };
+                                    // messageNullItemId.push(messageAlreadyExist);
+                                    return messageAlreadyExist;
+                                }
+                            }
+                            else{
+                                await pg.query("ROLLBACK");
+                            }
+                        });
+                    }
+                    else{
+                        await pg.query('ROLLBACK')
+                    }
+                }
+                else{
+                    await pg.query("ROLLBACK");
+                }
+            });
+        }
+        else{
+            await pg.query("ROLLBACK");
+            messageAlreadyExist = {
                 status : 500,
-                message : "Stock Type Not Mapping",
+                message : "Failed to create order",
                 detail : {
-                    data : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
+                    data : "ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
                 }
             };
-            console.log(messageAlreadyExist);
+            return messageAlreadyExist;
         }
-    } 
-    catch (error) 
-    {
-        // transaction.rollback();
-        res.json({
-            status : false,
-            message: "failed",
-            data   : "Server error"
-        });
+    }  catch (e) {
+        // await pg.query('ROLLBACK')
+        throw e
     }
 }
 
@@ -2023,16 +2257,6 @@ async function insertIntoHistoryOrder(headerId,statusId)
 async function insertIntoJobPushOrder(headerId)
 {
     let data = await conn_pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[headerId]);
-    var datas = data.rows;
-    if(data.rowCount > 0)
-    {
-        return datas;
-    }
-}
-
-async function insertIntoTmpRetry(headerId,channelId,shopConfigurationId,refOrderId)
-{
-    let data = await conn_pg.query("INSERT INTO tmpretry(channel_id, shop_configuration_id, order_header_id, order_code, acked, counter_ack, created_date, modified_date, created_by, modified_by) VALUES($1, $2, $3, $4, 0, 0, NOW(), NOW(), 0, 0)",[channelId,shopConfigurationId,headerId,refOrderId]);
     var datas = data.rows;
     if(data.rowCount > 0)
     {

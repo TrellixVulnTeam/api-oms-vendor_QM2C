@@ -669,7 +669,7 @@ async function getOrders (req,res,next)
                                                     }
                                                 });
                                             }
-                                            else{                                                
+                                            else{                                                 
                                                 messageError = {
                                                     status : 401,
                                                     message : "NOT_MAPPING",
@@ -1285,78 +1285,71 @@ async function storeOrders(orderCode, clientId, channelId, shopConfigurationId, 
         {
             datas.forEach(async function(orderHeader)
             {      
-                let jobpushorders = await conn_pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[orderHeader.order_header_id]);
+                let jobpushorders = await pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[orderHeader.order_header_id]);
                 if(jobpushorders.rowCount > 0)
                 {
-                    let orderhistorys = await conn_pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, NOW(), NOW(), 0, 0)",[orderHeader.order_header_id, orderHeader.status_id, createdName]);
+                    let orderhistorys = await pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, NOW(), NOW(), 0, 0)",[orderHeader.order_header_id, orderHeader.status_id, createdName]);
                     if(orderhistorys.rowCount > 0)
                     {
-                        let tmpretrys = await conn_pg.query("INSERT INTO tmpretry(channel_id, shop_configuration_id, order_header_id, order_code, acked, counter_ack, created_date, modified_date, created_by, modified_by) VALUES($1, $2, $3, $4, 0, 0, NOW(), NOW(), 0, 0)",[channelId,shopConfigurationId,orderHeader.order_header_id,refOrderId]);
-                        if(tmpretrys.rowCount > 0)
-                        {
-                            items.forEach(async function(item)
-                            {            
-                                var variants    = item.stuff.sku_name;
-                                let isInMappings = await checkMappingVariant(variants,shopConfigurationId);   
-                                if(isInMappings)   
+                        items.forEach(async function(item)
+                        {            
+                            var variants    = item.stuff.sku_name;
+                            let isInMappings = await checkMappingVariant(variants,shopConfigurationId);   
+                            if(isInMappings)   
+                            {  
+                                isInMappings.forEach(async function(isInMapping)
                                 {  
-                                    isInMappings.forEach(async function(isInMapping)
-                                    {  
-                                        if(isInMapping.item_id != null)
+                                    if(isInMapping.item_id != null)
+                                    {
+                                        // var sku         = item.product.id;
+                                        var unitWeight     = parseInt(item.stuff.product.weight);
+                                        var unitPrice      = parseInt(item.price);
+                                        var totalUnitPrice = parseInt(item.total_price);
+                                        var orderQuantity  = parseInt(item.quantity);
+                                        let insertDetails = await pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 0, 0)",[orderCode, orderHeader.order_header_id, isInMapping.item_id, orderQuantity, unitPrice, totalUnitPrice, unitWeight, orderHeader.status_id]);
+                                        if(insertDetails.rowCount > 0)
                                         {
-                                            // var sku         = item.product.id;
-                                            var unitWeight     = parseInt(item.stuff.product.weight);
-                                            var unitPrice      = parseInt(item.price);
-                                            var totalUnitPrice = parseInt(item.total_price);
-                                            var orderQuantity  = parseInt(item.quantity);
-                                            let insertDetails = await conn_pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 0, 0)",[orderCode, orderHeader.order_header_id, isInMapping.item_id, orderQuantity, unitPrice, totalUnitPrice, unitWeight, orderHeader.status_id]);
-                                            if(insertDetails.rowCount > 0)
-                                            {
-                                                await pg.query('COMMIT')
-                                                messageSuccess = {
-                                                    status : 200,
-                                                    message : "Success Create Order",
-                                                    detail : {
-                                                        data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
-                                                    }
-                                                };
-                                                return messageSuccess;
-                                            }
-                                            else{                                                
-                                                await pg.query('ROLLBACK')
-                                            }
-                                        }
-                                        else
-                                        {
-                                            await pg.query('ROLLBACK')
-                                            messageError = {
-                                                status : 500,
-                                                message : "Item Not Mapping",
+                                            await pg.query('COMMIT')
+                                            messageSuccess = {
+                                                status : 200,
+                                                message : "Success Create Order",
                                                 detail : {
-                                                    data : "GET ORDERS - Itemcode "+variants+" Not Mapping Item_id"
+                                                    data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
                                                 }
                                             };
-                                            return messageError;
+                                            return messageSuccess;
                                         }
-                                    });
-                                }
-                                else
-                                {
-                                    await pg.query('ROLLBACK')
-                                    messageError = {
-                                        status : 500,
-                                        message : "Item Not Mapping",
-                                        detail : {
-                                            data : "GET ORDERS - Itemcode "+variants+" Not Mapping"
+                                        else{                                                
+                                            await pg.query('ROLLBACK')
                                         }
-                                    };
-                                    return messageError;
-                                }
-                            });
-                        }
-                        else{
-                            await pg.query('ROLLBACK')
-                        }
+                                    }
+                                    else
+                                    {
+                                        await pg.query('ROLLBACK')
+                                        messageError = {
+                                            status : 500,
+                                            message : "Item Not Mapping",
+                                            detail : {
+                                                data : "GET ORDERS - Itemcode "+variants+" Not Mapping Item_id"
+                                            }
+                                        };
+                                        return messageError;
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                await pg.query('ROLLBACK')
+                                messageError = {
+                                    status : 500,
+                                    message : "Item Not Mapping",
+                                    detail : {
+                                        data : "GET ORDERS - Itemcode "+variants+" Not Mapping"
+                                    }
+                                };
+                                return messageError;
+                            }
+                        });
                     }
                     else{
                         await pg.query('ROLLBACK')
