@@ -379,7 +379,7 @@ async function getOrders (req,res,next)
                                                             {  
                                                                 var items = getSalesOrder.items;
                                                                 let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
-                                                                console.log(callStore);
+                                                                res.json(callStore);
                                                                 // if(callStore)
                                                                 // {    
                                                                 //     messageSuccessOrder = {
