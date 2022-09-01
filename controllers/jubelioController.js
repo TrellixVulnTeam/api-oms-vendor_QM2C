@@ -114,9 +114,8 @@ async function getProduct (req,res,next)
         }
         else
         {
-            // console.log(config);
             var configs = config.rows;
-            configs.forEach(function(rest)
+            configs.forEach(async function(rest)
             {                
                 var page = 1;
                 var pageSize = 100;
@@ -178,34 +177,15 @@ async function getProduct (req,res,next)
                             }
                         } while (isNextPage == true);
     
-                        allGetItems.forEach(function(allGetItem)
+                        allGetItems.forEach(async function(allGetItem)
                         {  
                             var variants = allGetItem.variants;
-
-                            if (rest.fs_id) 
+                            variants.forEach(async function(variant)
                             {
-                                var stores = allGetItem.online_status;
-                                stores.forEach(function(store)
-                                {
-                                    var storeId = store.store_id;
-                                    if (storeId == rest.fs_id) 
-                                    {
-                                        variants.forEach(function(variant)
-                                        {
-                                            var callStore = storeItems(variant, rest.shop_configuration_id, rest.client_id);
-                                            console.log(callStore);
-                                        });
-                                    }
-                                });
-                            } 
-                            else 
-                            {
-                                variants.forEach(function(variant)
-                                {
-                                    var callStore = storeItems(variant, rest.shop_configuration_id, rest.client_id);
+                                // console.log(variant);
+                                let callStore = storeItems(variant, rest.shop_configuration_id, rest.client_id);
                                     console.log(callStore);
-                                });
-                            }
+                            });
                         });
                     }
                     else
@@ -379,7 +359,7 @@ async function getOrders (req,res,next)
                                                             {  
                                                                 var items = getSalesOrder.items;
                                                                 let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
-                                                                res.json(callStore);
+                                                                console.log(callStore);
                                                                 // if(callStore)
                                                                 // {    
                                                                 //     messageSuccessOrder = {
@@ -393,7 +373,7 @@ async function getOrders (req,res,next)
                                                                 //     res.json({messageSuccessOrder});
                                                                 // }
                                                                 // else{
-                                                                //     pg.query("ROLLBACK");
+                                                                //     // pg.query("ROLLBACK");
                                                                 //     var messageFailedDetail = {
                                                                 //         status : 500,
                                                                 //         message : "Failed to create order",
@@ -1481,7 +1461,7 @@ async function postsyncStocks(req,res)
 }
 
 //store
-async function storeItems(variant, shop_configuration_id, client_id,res)
+async function storeItems(variant, shop_configuration_id, client_id,req,res,next)
 {
     result = {};
     var itemId         = variant.item_group_id;      // Product Id in Mapping Item
@@ -1490,111 +1470,105 @@ async function storeItems(variant, shop_configuration_id, client_id,res)
     var itemName       = variant.item_name;        // Product Name in Mapping Item
     var variantId      = variant.item_id;          // Variant Id in Mapping Item
     var itemProductUrl = null;
-
+    var messageNullItemId = {};
+    var messageFailedUpdate = {};
+    
     // var checkMappingItems    = checkMappingVariant(variantId, shop_configuration_id);
     let result_mapping = await conn_pg.query("SELECT product_code,product_name FROM mappingitem WHERE variant_id = $1 AND shop_configuration_id = $2", [variantId,shop_configuration_id]);
     var checkMappingItems = result_mapping.rows;
-    const checkMapping = Promise.all(checkMappingItems.map(async (checkMappingItem) => 
+    if(result_mapping.rowCount == 0)
     {
-        // console.log(checkMappingItem);    
-        if(checkMappingItem == "")
+        let checkItem = await conn_pg.query("SELECT item_id FROM item WHERE code = $1 AND client_id = $2", [itemCode,client_id]);
+        var chekItems = checkItem.rows;
+        if(checkItem.rowCount > 0)
         {
-            // console.log("new");        
-            // var chekItem = checkItem(itemCode, client_id);
-            let checkItem = await conn_pg.query("SELECT item_id FROM item WHERE code = $1 AND client_id = $2", [itemCode,client_id]);
-            var chekItems = checkItem.rows;
             chekItems.forEach(function(chekItem)
             {  
-                if (chekItem) 
-                {
                     // console.log("adaitemid");   
-                    var insert = insertIntoMappingItem(chekItem.item_id,shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId);
-                    if(insert != "")
-                    {
-                        var messageNullItemId = {
-                            status : 200,
-                            message : "Success Mapping Item",
-                            detail : {
-                                data : "MAPPING ITEM - "+itemCode+" has mapped successfully"
-                            }
-                        };
-                        console.log(messageNullItemId);
-                        // res.json({messageNullItemId});
-                    }
-                } 
-                else 
+                var insert = insertIntoMappingItem(chekItem.item_id,shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId);
+                if(insert != "")
                 {
-                    // console.log("gadaitemid");
-                    var insert = insertIntoMappingItemWithNullItemId(shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId);
-                    if(insert != "")
-                    {
-                        var messageNullItemId = {
-                            status : 500,
-                            message : "Mapping With Null Item Id",
-                            detail : {
-                                data : "MAPPING ITEM - Mapping With Null Item Id For "+itemCode+" cause by No Reference Found in MASTER ITEM"
-                            }
-                        };
-                        console.log(messageNullItemId);
-                        // res.json({messageNullItemId});
-                    }
+                    messageNullItemId = {
+                        status : 200,
+                        message : "Success Mapping Item",
+                        detail : {
+                            data : "MAPPING ITEM - "+itemCode+" has mapped successfully"
+                        }
+                    };
+                    // console.log(messageNullItemId);
+                    return messageNullItemId;
                 }
             });
         }
-        else
-        {
+        else{
+            var insert = insertIntoMappingItemWithNullItemId(shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId);
+            if(insert != "")
+            {
+                messageNullItemId = {
+                    status : 500,
+                    message : "Mapping With Null Item Id",
+                    detail : {
+                        data : "MAPPING ITEM - Mapping With Null Item Id For "+itemCode+" cause by No Reference Found in MASTER ITEM"
+                    }
+                };
+                // console.log(messageNullItemId);
+                return messageNullItemId;
+            }
+        }
+    }
+    else
+    {
+        // console.log('ada')
+        checkMappingItems.forEach(async function(checkMappingItem)
+        {  
             if(checkMappingItem.product_code != itemCode || checkMappingItem.product_name != itemName)
             {
-                // console.log("updatebeda");
-                // var chekItem = checkItem(itemCode, client_id);
                 let checkItem = await conn_pg.query("SELECT item_id FROM item WHERE code = $1 AND client_id = $2", [itemCode,client_id]);
                 var chekItems = checkItem.rows;
-                chekItems.forEach(function(chekItem)
-                {  
-                    if (chekItem) 
-                    {
-                        var update = updateMappingItemByVariantAndShop(chekItem.item_id,itemCode,variantId,shop_configuration_id);
-                        if(update != "")
-                        {
-                            var messageUpdate = {
-                                status : 200,
-                                message : "Success Update Mapping",
-                                detail : {
-                                    data : "MAPPING ITEM - "+itemCode+" has been updated succesfully"
-                                }
-                            };
-                            console.log(messageUpdate);
-                            // res.json({messageUpdate});
-                        }
-                    }
-                    else 
-                    {
-                        var messageFailedUpdate = {
-                            status : 500,
-                            message : "Failed",
-                            detail : {
-                                data : "Failed while update mapping item because Item Code "+itemCode+" is not exist in Haistar System. Please regist this item first or update sku on old item."
+                if(checkItem.rowCount > 0)
+                {
+                    chekItems.forEach(async function(chekItem)
+                    {  
+                            var update = updateMappingItemByVariantAndShop(chekItem.item_id,itemCode,variantId,shop_configuration_id);
+                            if(update != "")
+                            {
+                                var messageUpdate = {
+                                    status : 200,
+                                    message : "Success Update Mapping",
+                                    detail : {
+                                        data : "MAPPING ITEM - "+itemCode+" has been updated succesfully"
+                                    }
+                                };
+                                return messageUpdate;
+                                // res.json({messageUpdate});
                             }
-                        };
-                        console.log(messageFailedUpdate);
-                        // res.json({messageFailedUpdate});
-                    }
-                });
+                    });
+                }
+                else{
+                    messageFailedUpdate = {
+                        status : 500,
+                        message : "Failed",
+                        detail : {
+                            data : "Failed while update mapping item because Item Code "+itemCode+" is not exist in Haistar System. Please regist this item first or update sku on old item."
+                        }
+                    };
+                    return messageFailedUpdate;
+                }
             }
             else
             {
-                var messageAlreadyExist = {
+                messageAlreadyExist = {
                     status : 500,
                     message : "Item Already Exist",
                     detail : {
                         data : "MAPPING ITEM - Itemcode "+itemCode+" has exist in MAPPING ITEM but item id is null"
                     }
                 };
-                console.log(messageAlreadyExist);
+                return messageAlreadyExist;
                 // res.json({messageAlreadyExist});
             }
-        }
-    }));
+        });
+    }
 }
 
 /*async function storeOrders(getSalesOrder, items, Configuration, channelName, stockType, salesOrderNo, orderCode, location, sourceName, orderType, res, req, next)
@@ -1847,8 +1821,12 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
     {
         await pg.query('BEGIN')
         var messageSuccessOrder = {};
-        var messageAlreadyExist = {};
-        var messageNullItemId   = [];
+        var messageAlreadyExist = {
+            status : 500,
+            message : "Failed to create order",
+            detail : []
+        };
+        var messageNullItemId   = {};
         var shopConfigurationId = Configuration.shop_configuration_id;
         var clientId            = Configuration.client_id;
         var channelId           = Configuration.channel_id;
@@ -1976,28 +1954,22 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                         else
                                         {
                                             await pg.query("ROLLBACK");
-                                            // console.log(isInMapping.product_code)
-                                            messageAlreadyExist = {
-                                                status : 500,
-                                                message : "Failed to create order",
-                                                detail : "GET ORDERS - Itemcode "+isInMapping.product_code+" Not Mapping Item_id"
+                                            messageNullItemId = {
+                                                data : "GET ORDERS - Itemcode "+isInMapping.product_code+" Not Mapping Item_id"
                                             };
-                                            // messageNullItemId.push(messageAlreadyExist);
-                                            // console.log(messageAlreadyExist);
-                                            return messageFailedDetail;
+                                            messageAlreadyExist.push(messageNullItemId);
+                                            console.log(messageAlreadyExist);
+                                            // return messageFailedDetail;
                                         }
                                     });
                                 }
                                 else
                                 {
                                     await pg.query("ROLLBACK");
-                                    messageAlreadyExist = {
-                                        status : 500,
-                                        message : "Failed to create order",
-                                        detail : {
-                                            data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
-                                        }
+                                    messageNullItemId = {
+                                        data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
                                     };
+                                    messageAlreadyExist.push(messageNullItemId);
                                     // messageNullItemId.push(messageAlreadyExist);
                                     return messageAlreadyExist;
                                 }
@@ -2018,13 +1990,11 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
         }
         else{
             await pg.query("ROLLBACK");
-            messageAlreadyExist = {
-                status : 500,
-                message : "Failed to create order",
-                detail : {
-                    data : "ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
-                }
+            messageNullItemId = {
+                data : "GET ORDERS - ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
             };
+            messageAlreadyExist.push(messageNullItemId);
+            // messageNullItemId.push(messageAlreadyExist);
             return messageAlreadyExist;
         }
     }  catch (e) {
