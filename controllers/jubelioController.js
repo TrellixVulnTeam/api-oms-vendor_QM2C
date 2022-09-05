@@ -1937,6 +1937,7 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                                         data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
                                                     }
                                                 };
+                                                console.log(messageSuccessOrder);
                                                 return messageSuccessOrder;
                                             }
                                             else{
@@ -1948,6 +1949,7 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                                         data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
                                                     }
                                                 };
+                                                console.log(messageFailedDetail);
                                                 return messageFailedDetail;
                                             }
                                         } 
@@ -1957,9 +1959,9 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                             messageNullItemId = {
                                                 data : "GET ORDERS - Itemcode "+isInMapping.product_code+" Not Mapping Item_id"
                                             };
-                                            messageAlreadyExist.push(messageNullItemId);
+                                            messageAlreadyExist.detail.push(messageNullItemId);
                                             console.log(messageAlreadyExist);
-                                            // return messageFailedDetail;
+                                            return messageFailedDetail;
                                         }
                                     });
                                 }
@@ -1969,8 +1971,8 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                     messageNullItemId = {
                                         data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
                                     };
-                                    messageAlreadyExist.push(messageNullItemId);
-                                    // messageNullItemId.push(messageAlreadyExist);
+                                    messageAlreadyExist.detail.push(messageNullItemId);
+                                    console.log(messageAlreadyExist);
                                     return messageAlreadyExist;
                                 }
                             }
@@ -1993,8 +1995,8 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
             messageNullItemId = {
                 data : "GET ORDERS - ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
             };
-            messageAlreadyExist.push(messageNullItemId);
-            // messageNullItemId.push(messageAlreadyExist);
+            messageAlreadyExist.detail.push(messageNullItemId);
+            console.log(messageAlreadyExist);
             return messageAlreadyExist;
         }
     }  catch (e) {
