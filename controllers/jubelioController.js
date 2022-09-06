@@ -1823,10 +1823,8 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
         var messageSuccessOrder = {};
         var messageAlreadyExist = {
             status : 500,
-            message : "Failed to create order",
-            detail : []
+            message : "Failed to create order"
         };
-        var messageNullItemId   = {};
         var shopConfigurationId = Configuration.shop_configuration_id;
         var clientId            = Configuration.client_id;
         var channelId           = Configuration.channel_id;
@@ -1893,114 +1891,102 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
         var remarks       = getSalesOrder.customer_name+" - "+salesOrderNo+" - "+remark;
         var createdName = "Automatic By System API";
 
+        var messageNullItemId = {};
         let data = await pg.query("INSERT INTO orderheader(order_code, location_id, client_id, shop_configuration_id, status_id, delivery_type_id, payment_type_id, channel_id, stock_type_id, order_type_id, ref_order_id, code, order_date, booking_number, waybill_number, recipient_name, recipient_phone, recipient_email, recipient_address, recipient_district, recipient_city, recipient_province, recipient_country, recipient_postal_code, latitude, longitude, total_koli, shipping_price, total_price, cod_price, dfod_price, stock_source, notes, remark, created_date, modified_date, created_by, modified_by, created_name, store_name, discount, discount_shipping, discount_point, discount_seller, discount_platform, total_product_price) VALUES ($1, $2, $3, $4, 70, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 0, 0, 0, $24, $25, $26, 0, $27, $28, $29, NOW(), NOW(), 0, 0, $30, $31, 0, 0, $32, $33, $34, 0) RETURNING order_header_id, status_id",[orderCode, locationId, clientId, shopConfigurationId, CourierMapped.delivery_type_id, paymentId, channelId, stockType, orderTypeId, refOrderId, orderCode, timeStamp, bookingNumber, waybillNumber, recipientName, recipientPhone, recipientEmail, recipientAddress, recipientDistrict, recipientCity, recipientProvince, recipientCountry, recipientPostalCode, shippingPrice, totalPrice, codPrice, stockSource, notes, remarks, createdName, Configuration.shop_name, discountPoint, discountSeller, discountPlatform]);
-        var insert = data.rows;
+        var orderHeader = {};
+        orderHeader.order_header_id = data.rows[0].order_header_id;
+        orderHeader.status_id = data.rows[0].status_id;
         if(data.rowCount > 0)
-        {
-            insert.forEach(async function(orderHeader)
-            {       
-                let jobpushorders = await pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[orderHeader.order_header_id]);
-                if(jobpushorders.rowCount > 0)
+        {    
+            let jobpushorders = await pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[orderHeader.order_header_id]);
+            if(jobpushorders.rowCount > 0)
+            {
+                let orderhistorys = await pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, NOW(), NOW(), 0, 0)",[orderHeader.order_header_id, orderHeader.status_id, createdName]);
+                if(orderhistorys.rowCount > 0)
                 {
-                    let orderhistorys = await pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, NOW(), NOW(), 0, 0)",[orderHeader.order_header_id, orderHeader.status_id, createdName]);
-                    if(orderhistorys.rowCount > 0)
-                    {
-                        var variantId = null;
-                        var itemCode  = null;
-                        items.forEach(async function(item)
-                        { 
-                            var fbm = item.fbm;
-                            if(fbm != "fbl")
-                            {  
-                                variantId = item.item_id;
-                                itemCode = item.item_code;
-                                let isInMappings = await checkMappingVariant(variantId,shopConfigurationId);   
-                                if(isInMappings)   
-                                {  
-                                    isInMappings.forEach(async function(isInMapping)
-                                    {  
-                                        // console.log(isInMapping)
-                                        if(isInMapping.item_id != null)
-                                        {
-                                            var unitWeight     = parseInt(item.weight_in_gram);
-                                            var unitPrice      = parseInt(item.original_price);
-                                            var totalUnitPrice = parseInt(item.qty_in_base*item.original_price);
-                                            var orderQuantity  = parseInt(item.qty_in_base);
-                                            let insertDetails  = await pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 0, 0)",[orderCode, orderHeader.order_header_id, isInMapping.item_id, orderQuantity, unitPrice, totalUnitPrice, unitWeight, orderHeader.status_id]);
-                                            if(insertDetails.rowCount > 0)
-                                            { 
-                                                await pg.query('COMMIT');
-                                                messageSuccessOrder = {
-                                                    status : 200,
-                                                    message : "Success Create Order",
-                                                    detail : {
-                                                        data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
-                                                    }
-                                                };
-                                                console.log(messageSuccessOrder);
-                                                return messageSuccessOrder;
+                    var variantId = null;
+                    var itemCode  = null;
+                    // var dataItems   = [];
+                    items.forEach(async function(item){ 
+                        var fbm = item.fbm;
+                        if(fbm != "fbl")
+                        {  
+                            variantId = item.item_id;
+                            itemCode = item.item_code;
+                            let result_mapping = await pg.query("SELECT item_id,product_code,product_name,variant_id FROM mappingitem WHERE variant_id = $1 AND shop_configuration_id = $2", [variantId,shopConfigurationId]);
+                            var isInMapping = result_mapping.rows[0];
+                            if(result_mapping.rowCount > 0)
+                            {
+                                if(isInMapping.item_id != null)
+                                {
+                                    var unitWeight     = parseInt(item.weight_in_gram);
+                                    var unitPrice      = parseInt(item.original_price);
+                                    var totalUnitPrice = parseInt(item.qty_in_base*item.original_price);
+                                    var orderQuantity  = parseInt(item.qty_in_base);
+                                    let insertDetails  = await pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 0, 0)",[orderCode, orderHeader.order_header_id, isInMapping.item_id, orderQuantity, unitPrice, totalUnitPrice, unitWeight, orderHeader.status_id]);
+                                    if(insertDetails.rowCount > 0)
+                                    { 
+                                        await pg.query('COMMIT');
+                                        messageSuccessOrder = {
+                                            status : 200,
+                                            message : "Success Create Order",
+                                            detail : {
+                                                data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
                                             }
-                                            else{
-                                                await pg.query("ROLLBACK");
-                                                var messageFailedDetail = {
-                                                    status : 500,
-                                                    message : "Failed to create order",
-                                                    detail : {
-                                                        data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
-                                                    }
-                                                };
-                                                console.log(messageFailedDetail);
-                                                return messageFailedDetail;
-                                            }
-                                        } 
-                                        else
-                                        {
-                                            await pg.query("ROLLBACK");
-                                            messageNullItemId = {
-                                                data : "GET ORDERS - Itemcode "+isInMapping.product_code+" Not Mapping Item_id"
-                                            };
-                                            messageAlreadyExist.detail.push(messageNullItemId);
-                                            console.log(messageAlreadyExist);
-                                            return messageFailedDetail;
-                                        }
-                                    });
-                                }
+                                        };
+                                        console.log(messageSuccessOrder);
+                                        // return messageSuccessOrder;
+                                    }
+                                    else{
+                                        await pg.query("ROLLBACK");
+                                        messageNullItemId = {
+                                            data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
+                                        };
+                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, NOW(), $6)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), item]);
+                                    }
+                                } 
                                 else
                                 {
                                     await pg.query("ROLLBACK");
                                     messageNullItemId = {
-                                        data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
+                                        data : "GET ORDERS - Itemcode "+isInMapping.product_code+" Not Mapping Item_id"
                                     };
-                                    messageAlreadyExist.detail.push(messageNullItemId);
-                                    console.log(messageAlreadyExist);
-                                    return messageAlreadyExist;
+                                    let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, NOW(), $6)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), item]);
                                 }
                             }
-                            else{
+                            else
+                            {
                                 await pg.query("ROLLBACK");
+                                messageNullItemId = {
+                                    data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
+                                };
+                                let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, NOW(), $6)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), item]);
                             }
-                        });
-                    }
-                    else{
-                        await pg.query('ROLLBACK')
-                    }
+                        }
+                        else{
+                            await pg.query("ROLLBACK");
+                        }
+                        // dataItems.push(messageNullItemId)
+                        console.log(messageNullItemId);
+                    });
                 }
                 else{
-                    await pg.query("ROLLBACK");
+                    await pg.query('ROLLBACK')
                 }
-            });
+            }
+            else{
+                await pg.query("ROLLBACK");
+            }
         }
         else{
             await pg.query("ROLLBACK");
             messageNullItemId = {
                 data : "GET ORDERS - ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
             };
-            messageAlreadyExist.detail.push(messageNullItemId);
-            console.log(messageAlreadyExist);
-            return messageAlreadyExist;
+            let logapi  = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, null, $4, NOW(), null)",[clientId, shopConfigurationId, orderCode, JSON.stringify(messageNullItemId)]);
         }
     }  catch (e) {
-        // await pg.query('ROLLBACK')
+        await pg.query('ROLLBACK')
         throw e
     }
 }
