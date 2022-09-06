@@ -8,6 +8,7 @@ const nodeBase64 = require('nodejs-base64-converter');
 const conn_pg    = require('../dbConnection_pg');
 const { json } = require('express');
 const e = require('express');
+const moment = require('moment');
 
 async function getToken (req,res,next) 
 {
@@ -1475,30 +1476,27 @@ async function storeItems(variant, shop_configuration_id, client_id,req,res,next
     
     // var checkMappingItems    = checkMappingVariant(variantId, shop_configuration_id);
     let result_mapping = await conn_pg.query("SELECT product_code,product_name FROM mappingitem WHERE variant_id = $1 AND shop_configuration_id = $2", [variantId,shop_configuration_id]);
-    var checkMappingItems = result_mapping.rows;
+    var checkMappingItem = result_mapping.rows[0];
     if(result_mapping.rowCount == 0)
     {
         let checkItem = await conn_pg.query("SELECT item_id FROM item WHERE code = $1 AND client_id = $2", [itemCode,client_id]);
-        var chekItems = checkItem.rows;
+        var chekItem = checkItem.rows[0];
         if(checkItem.rowCount > 0)
         {
-            chekItems.forEach(function(chekItem)
-            {  
-                    // console.log("adaitemid");   
-                var insert = insertIntoMappingItem(chekItem.item_id,shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId);
-                if(insert != "")
-                {
-                    messageNullItemId = {
-                        status : 200,
-                        message : "Success Mapping Item",
-                        detail : {
-                            data : "MAPPING ITEM - "+itemCode+" has mapped successfully"
-                        }
-                    };
-                    // console.log(messageNullItemId);
-                    return messageNullItemId;
-                }
-            });
+                    // console.log(chekItem);   
+            var insert = insertIntoMappingItem(chekItem.item_id,shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId);
+            if(insert != "")
+            {
+                messageNullItemId = {
+                    status : 200,
+                    message : "Success Mapping Item",
+                    detail : {
+                        data : "MAPPING ITEM - "+itemCode+" has mapped successfully"
+                    }
+                };
+                // console.log(messageNullItemId);
+                return messageNullItemId;
+            }
         }
         else{
             var insert = insertIntoMappingItemWithNullItemId(shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId);
@@ -1518,56 +1516,53 @@ async function storeItems(variant, shop_configuration_id, client_id,req,res,next
     }
     else
     {
-        // console.log('ada')
-        checkMappingItems.forEach(async function(checkMappingItem)
-        {  
-            if(checkMappingItem.product_code != itemCode || checkMappingItem.product_name != itemName)
+        // console.log(checkMappingItem)
+        if(checkMappingItem.product_code != itemCode || checkMappingItem.product_name != itemName)
+        {
+            let checkItem = await conn_pg.query("SELECT item_id FROM item WHERE code = $1 AND client_id = $2", [itemCode,client_id]);
+            var chekItems = checkItem.rows;
+            if(checkItem.rowCount > 0)
             {
-                let checkItem = await conn_pg.query("SELECT item_id FROM item WHERE code = $1 AND client_id = $2", [itemCode,client_id]);
-                var chekItems = checkItem.rows;
-                if(checkItem.rowCount > 0)
-                {
-                    chekItems.forEach(async function(chekItem)
-                    {  
-                            var update = updateMappingItemByVariantAndShop(chekItem.item_id,itemCode,variantId,shop_configuration_id);
-                            if(update != "")
-                            {
-                                var messageUpdate = {
-                                    status : 200,
-                                    message : "Success Update Mapping",
-                                    detail : {
-                                        data : "MAPPING ITEM - "+itemCode+" has been updated succesfully"
-                                    }
-                                };
-                                return messageUpdate;
-                                // res.json({messageUpdate});
-                            }
-                    });
-                }
-                else{
-                    messageFailedUpdate = {
-                        status : 500,
-                        message : "Failed",
-                        detail : {
-                            data : "Failed while update mapping item because Item Code "+itemCode+" is not exist in Haistar System. Please regist this item first or update sku on old item."
+                chekItems.forEach(async function(chekItem)
+                {  
+                        var update = updateMappingItemByVariantAndShop(chekItem.item_id,itemCode,variantId,shop_configuration_id);
+                        if(update != "")
+                        {
+                            var messageUpdate = {
+                                status : 200,
+                                message : "Success Update Mapping",
+                                detail : {
+                                    data : "MAPPING ITEM - "+itemCode+" has been updated succesfully"
+                                }
+                            };
+                            return messageUpdate;
+                            // res.json({messageUpdate});
                         }
-                    };
-                    return messageFailedUpdate;
-                }
+                });
             }
-            else
-            {
-                messageAlreadyExist = {
+            else{
+                messageFailedUpdate = {
                     status : 500,
-                    message : "Item Already Exist",
+                    message : "Failed",
                     detail : {
-                        data : "MAPPING ITEM - Itemcode "+itemCode+" has exist in MAPPING ITEM but item id is null"
+                        data : "Failed while update mapping item because Item Code "+itemCode+" is not exist in Haistar System. Please regist this item first or update sku on old item."
                     }
                 };
-                return messageAlreadyExist;
-                // res.json({messageAlreadyExist});
+                return messageFailedUpdate;
             }
-        });
+        }
+        else
+        {
+            messageAlreadyExist = {
+                status : 500,
+                message : "Item Already Exist",
+                detail : {
+                    data : "MAPPING ITEM - Itemcode "+itemCode+" has exist in MAPPING ITEM but item id is null"
+                }
+            };
+            return messageAlreadyExist;
+            // res.json({messageAlreadyExist});
+        }
     }
 }
 
@@ -1868,8 +1863,8 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
         var discountSeller   = 0;
         var discountPlatform = 0;
         var shippingPrice    = parseInt(getSalesOrder.shipping_cost);
-        var date             = getSalesOrder.created_date.replace('T', " ");
-        var timeStamp        = date.replace('.991Z', "");
+        var dates            = getSalesOrder.created_date.replace('T', " ");
+        var timeStamp        = dates.replace('.991Z', "");
         var recipientName    = getSalesOrder.shipping_full_name;
         var recipientPhone   = "-";
         if(getSalesOrder.shipping_phone)
@@ -1892,21 +1887,22 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
         var createdName = "Automatic By System API";
 
         var messageNullItemId = {};
-        let data = await pg.query("INSERT INTO orderheader(order_code, location_id, client_id, shop_configuration_id, status_id, delivery_type_id, payment_type_id, channel_id, stock_type_id, order_type_id, ref_order_id, code, order_date, booking_number, waybill_number, recipient_name, recipient_phone, recipient_email, recipient_address, recipient_district, recipient_city, recipient_province, recipient_country, recipient_postal_code, latitude, longitude, total_koli, shipping_price, total_price, cod_price, dfod_price, stock_source, notes, remark, created_date, modified_date, created_by, modified_by, created_name, store_name, discount, discount_shipping, discount_point, discount_seller, discount_platform, total_product_price) VALUES ($1, $2, $3, $4, 70, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 0, 0, 0, $24, $25, $26, 0, $27, $28, $29, NOW(), NOW(), 0, 0, $30, $31, 0, 0, $32, $33, $34, 0) RETURNING order_header_id, status_id",[orderCode, locationId, clientId, shopConfigurationId, CourierMapped.delivery_type_id, paymentId, channelId, stockType, orderTypeId, refOrderId, orderCode, timeStamp, bookingNumber, waybillNumber, recipientName, recipientPhone, recipientEmail, recipientAddress, recipientDistrict, recipientCity, recipientProvince, recipientCountry, recipientPostalCode, shippingPrice, totalPrice, codPrice, stockSource, notes, remarks, createdName, Configuration.shop_name, discountPoint, discountSeller, discountPlatform]);
+        const date = moment().format("YYYY-MM-DD HH:mm:ss");
+        let data = await pg.query("INSERT INTO orderheader(order_code, location_id, client_id, shop_configuration_id, status_id, delivery_type_id, payment_type_id, channel_id, stock_type_id, order_type_id, ref_order_id, code, order_date, booking_number, waybill_number, recipient_name, recipient_phone, recipient_email, recipient_address, recipient_district, recipient_city, recipient_province, recipient_country, recipient_postal_code, latitude, longitude, total_koli, shipping_price, total_price, cod_price, dfod_price, stock_source, notes, remark, created_date, modified_date, created_by, modified_by, created_name, store_name, discount, discount_shipping, discount_point, discount_seller, discount_platform, total_product_price) VALUES ($1, $2, $3, $4, 70, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 0, 0, 0, $24, $25, $26, 0, $27, $28, $29, $30, $31, 0, 0, $32, $33, 0, 0, $34, $35, $36, 0) RETURNING order_header_id, status_id",[orderCode, locationId, clientId, shopConfigurationId, CourierMapped.delivery_type_id, paymentId, channelId, stockType, orderTypeId, refOrderId, orderCode, timeStamp, bookingNumber, waybillNumber, recipientName, recipientPhone, recipientEmail, recipientAddress, recipientDistrict, recipientCity, recipientProvince, recipientCountry, recipientPostalCode, shippingPrice, totalPrice, codPrice, stockSource, notes, remarks, date, date, createdName, Configuration.shop_name, discountPoint, discountSeller, discountPlatform]);
         var orderHeader = {};
         orderHeader.order_header_id = data.rows[0].order_header_id;
         orderHeader.status_id = data.rows[0].status_id;
         if(data.rowCount > 0)
         {    
-            let jobpushorders = await pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[orderHeader.order_header_id]);
+            let jobpushorders = await pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, $2))",[orderHeader.order_header_id,date]);
             if(jobpushorders.rowCount > 0)
             {
-                let orderhistorys = await pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, NOW(), NOW(), 0, 0)",[orderHeader.order_header_id, orderHeader.status_id, createdName]);
+                let orderhistorys = await pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, 0, 0)",[orderHeader.order_header_id, orderHeader.status_id, createdName, date, date]);
                 if(orderhistorys.rowCount > 0)
                 {
                     var variantId = null;
                     var itemCode  = null;
-                    // var dataItems   = [];
+                    var BreakException = {};
                     items.forEach(async function(item){ 
                         var fbm = item.fbm;
                         if(fbm != "fbl")
@@ -1923,7 +1919,7 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                     var unitPrice      = parseInt(item.original_price);
                                     var totalUnitPrice = parseInt(item.qty_in_base*item.original_price);
                                     var orderQuantity  = parseInt(item.qty_in_base);
-                                    let insertDetails  = await pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 0, 0)",[orderCode, orderHeader.order_header_id, isInMapping.item_id, orderQuantity, unitPrice, totalUnitPrice, unitWeight, orderHeader.status_id]);
+                                    let insertDetails  = await pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, 0)",[orderCode, orderHeader.order_header_id, isInMapping.item_id, orderQuantity, unitPrice, totalUnitPrice, unitWeight, orderHeader.status_id, date, date]);
                                     if(insertDetails.rowCount > 0)
                                     { 
                                         await pg.query('COMMIT');
@@ -1936,13 +1932,14 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                         };
                                         console.log(messageSuccessOrder);
                                         // return messageSuccessOrder;
+                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageSuccessOrder), date, item]);
                                     }
                                     else{
                                         await pg.query("ROLLBACK");
                                         messageNullItemId = {
                                             data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
                                         };
-                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, NOW(), $6)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), item]);
+                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), date, item]);
                                     }
                                 } 
                                 else
@@ -1951,7 +1948,7 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                     messageNullItemId = {
                                         data : "GET ORDERS - Itemcode "+isInMapping.product_code+" Not Mapping Item_id"
                                     };
-                                    let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, NOW(), $6)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), item]);
+                                    let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), date, item]);
                                 }
                             }
                             else
@@ -1960,7 +1957,7 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
                                 messageNullItemId = {
                                     data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
                                 };
-                                let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, NOW(), $6)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), item]);
+                                let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[clientId, shopConfigurationId, orderCode, itemCode, JSON.stringify(messageNullItemId), date, item]);
                             }
                         }
                         else{
@@ -1983,7 +1980,7 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
             messageNullItemId = {
                 data : "GET ORDERS - ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
             };
-            let logapi  = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, null, $4, NOW(), null)",[clientId, shopConfigurationId, orderCode, JSON.stringify(messageNullItemId)]);
+            let logapi  = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, null, $4, $5, null)",[clientId, shopConfigurationId, orderCode, JSON.stringify(messageNullItemId), date]);
         }
     }  catch (e) {
         await pg.query('ROLLBACK')
@@ -2123,35 +2120,39 @@ async function checkOrderCourierByCode(orderCode)
 //insert
 async function insertIntoMappingItem(item_id,shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId)
 {
-  let data = await conn_pg.query("INSERT INTO mappingitem (item_id, shop_configuration_id, product_id, product_code, product_name, product_url, variant_id, active, created_date, modified_date, created_by, modified_by) VALUES ($1,$2,$3,$4,$5,$6,$7,1,NOW(),NOW(),0,0)",[item_id,shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId]);
-  if(data.rowCount == 0)
-  {
-    console.log("Success");
-  }
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    let data = await conn_pg.query("INSERT INTO mappingitem (item_id, shop_configuration_id, product_id, product_code, product_name, product_url, variant_id, active, created_date, modified_date, created_by, modified_by) VALUES ($1,$2,$3,$4,$5,$6,$7,1,$8,$9,0,0)",[item_id,shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId,date,date]);
+    if(data.rowCount == 0)
+    {
+        return data.rows[0];
+    }
 }
 
 async function insertIntoMappingItemWithNullItemId(shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId)
 {
-  let data = await conn_pg.query("INSERT INTO mappingitem (shop_configuration_id, product_id, product_code, product_name, product_url, variant_id, active, created_date, modified_date, created_by, modified_by) VALUES ($1,$2,$3,$4,$5,$6,1,NOW(),NOW(),0,0)",[shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId]);
-  if(data.rowCount == 0)
-  {
-    console.log("Success");
-  }
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    let data = await conn_pg.query("INSERT INTO mappingitem (shop_configuration_id, product_id, product_code, product_name, product_url, variant_id, active, created_date, modified_date, created_by, modified_by) VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,0,0)",[shop_configuration_id,itemId,itemCode,itemName,itemProductUrl,variantId,date,date]);
+    if(data.rowCount == 0)
+    {
+        return data.rows[0];
+    }
 }
 
 async function updateMappingItemByVariantAndShop(item_id, itemCode, variantId, shop_configuration_id)
 {
-  let data = await conn_pg.query("UPDATE mappingitem SET item_id = $1, product_code = $2 WHERE variant_id = $3 AND shop_configuration_id = $4",[item_id,itemCode,variantId,shop_configuration_id]);
-  if(data.rowCount == 0)
-  {
-    console.log("Success");
-  }
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    let data = await conn_pg.query("UPDATE mappingitem SET item_id = $1, product_code = $2, modified_date = $3 WHERE variant_id = $3 AND shop_configuration_id = $4",[item_id,itemCode,variantId,shop_configuration_id,date]);
+    if(data.rowCount == 0)
+    {
+        return data.rows[0];
+    }
 }
 
 async function updateCobByOrderCode(orderCode, cobNumber)
 {
-    let updateResi = await conn_pg.query("UPDATE orderheader SET booking_number = $1 WHERE code = $2",[orderCode,cobNumber]);
-    updateCob = updateResi.rows;
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    let updateResi = await conn_pg.query("UPDATE orderheader SET booking_number = $1, modified_date = $2 WHERE code = $3",[cobNumber,date,orderCode]);
+    var updateCob = updateResi.rows;
     if(updateResi.rowCount > 0)
     {
         return updateCob;
@@ -2160,8 +2161,9 @@ async function updateCobByOrderCode(orderCode, cobNumber)
 
 async function updateCourierByOrderHeaderId(orderHeaderId, deliveryTypeId)
 {
-    let updateCouriers = await conn_pg.query("UPDATE orderheader SET delivery_type_id = $1 WHERE order_header_id  = $2",[deliveryTypeId,orderHeaderId]);
-    updateCourier = updateCouriers.rows;
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    let updateCouriers = await conn_pg.query("UPDATE orderheader SET delivery_type_id = $1, modified_date = $2 WHERE order_header_id  = $3",[deliveryTypeId,date,orderHeaderId]);
+    var updateCourier = updateCouriers.rows;
     if(updateCouriers.rowCount > 0)
     {
         return updateCourier;
@@ -2170,55 +2172,12 @@ async function updateCourierByOrderHeaderId(orderHeaderId, deliveryTypeId)
 
 async function updateProductUrlInMappingItem(itemId, shopConfigId, variantId, productUrl)
 {
-    let updateUrls = await conn_pg.query("UPDATE mappingitem SET product_url = $1 WHERE item_id = $2 AND shop_configuration_id = $3 AND variant_id = $4",[productUrl,itemId,shopConfigId,variantId]);
-    updateUrl = updateUrls.rows;
+    const date = moment().format("YYYY-MM-DD HH:mm:ss");
+    let updateUrls = await conn_pg.query("UPDATE mappingitem SET product_url = $1, modified_date = $2 WHERE item_id = $3 AND shop_configuration_id = $4 AND variant_id = $5",[productUrl,date,itemId,shopConfigId,variantId]);
+    var updateUrl = updateUrls.rows;
     if(updateUrls.rowCount > 0)
     {
         return updateUrl;
-    }
-}
-
-async function insertIntoHeaderOrder(orderCode, clientId, channelId, shopConfigurationId, stockTypeId, orderTypeId, deliveryTypeId, locationId, refOrderId, bookingNumber, waybillNumber, totalPrice, recipientName, recipientPhone, recipientAddress, recipientEmail, recipientDistrict, recipientCity, recipientProvince, recipientCountry, recipientPostalCode, timeStamp, discountPoint, discountSeller, discountPlatform, shippingPrice, paymentId, codPrice, remarks, notes, stockSource)
-{
-    var statusId = 70;
-    var createdName = "Automatic By System API";
-    let data = await conn_pg.query("INSERT INTO orderheader(order_code, location_id, client_id, shop_configuration_id, status_id, delivery_type_id, payment_type_id, channel_id, stock_type_id, order_type_id, ref_order_id, code, order_date, booking_number, waybill_number, recipient_name, recipient_phone, recipient_email, recipient_address, recipient_district, recipient_city, recipient_province, recipient_country, recipient_postal_code, latitude, longitude, total_koli, shipping_price, total_price, cod_price, dfod_price, stock_source, notes, remark, created_date, modified_date, created_by, modified_by, created_name, store_name, discount, discount_shipping, discount_point, discount_seller, discount_platform, total_product_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, 0, 0, 0, $25, $26, $27, 0, $28, $29, $30, NOW(), NOW(), 0, 0, $31, $30, 0, 0, $32, $33, $34, 0) RETURNING order_header_id, status_id",[orderCode, locationId, clientId, shopConfigurationId, statusId, deliveryTypeId, paymentId, channelId, stockTypeId, orderTypeId, refOrderId, orderCode, timeStamp, bookingNumber, waybillNumber, recipientName, recipientPhone, recipientEmail, recipientAddress, recipientDistrict, recipientCity, recipientProvince, recipientCountry, recipientPostalCode, shippingPrice, totalPrice, codPrice, stockSource, notes, remarks, createdName, discountPoint, discountSeller, discountPlatform]);
-    var datas = data.rows;
-    if(data.rowCount > 0)
-    {
-        return datas;
-    }
-}
-
-async function insertIntoDetailOrder(orderCode, headerId, itemId, orderQuantity, unitPrice, totalUnitPrice, unitWeight)
-{
-    var statusId = 70;
-    let data = await conn_pg.query("INSERT INTO orderdetail(order_code, order_header_id, item_id, order_quantity, unit_price, total_unit_price, unit_weight, status_id, created_date, modified_date, created_by, modified_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), 0, 0)",[orderCode, headerId, itemId, orderQuantity, unitPrice, totalUnitPrice, unitWeight, statusId]);
-    var datas = data.rows;
-    if(data.rowCount > 0)
-    {
-        return datas;
-    }
-}
-
-async function insertIntoHistoryOrder(headerId,statusId)
-{
-    var createdName = "Automatic By System API";
-    let data = await conn_pg.query("INSERT INTO orderhistory(order_header_id, status_id, updated_by, update_date, created_date, created_by, modified_by) VALUES ($1, $2, $3, NOW(), NOW(), 0, 0)",[headerId, statusId, createdName]);
-    var datas = data.rows;
-    if(data.rowCount > 0)
-    {
-        return datas;
-    }
-}
-
-async function insertIntoJobPushOrder(headerId)
-{
-    let data = await conn_pg.query("INSERT INTO jobpushorder(order_header_id, created_date) VALUES($1, NOW())",[headerId]);
-    var datas = data.rows;
-    if(data.rowCount > 0)
-    {
-        return datas;
     }
 }
 
