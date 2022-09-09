@@ -221,57 +221,101 @@ async function getProduct (req,res,next)
 
 async function getOrders (req,res,next) 
 {
-  try 
-  {
-    const config = await conn_pg.query("SELECT shop.client_id, shop.channel_id, shop.shop_configuration_id, cl.api_key, shop.shop_name, shop.fs_id, shop.token, shop.partial_integration FROM client cl LEFT JOIN shopconfiguration shop ON cl.client_id = shop.client_id LEFT JOIN channel ch ON shop.channel_id = ch.channel_id WHERE ch.name = 'JUBELIO' AND shop.active = 1 AND shop.get_order = 1");
-    if(config.rowCount == 0)
+    var messageError = {};
+    try 
     {
-      res.json({
-          status: false,
-          message: "Shop not found"
-      });
-    }
-    else
-    {
-        var configs = config.rows;
-        configs.forEach(function(rest)
-        {     
-            var orderType   = "Sales Order";   
-            var channelName = 'JUBELIO';   
-            // rest.multi_channel == 1 ? stockType = 'MULTI CHANNEL' : stockType = channelName;
-            var stockType = 'MULTI CHANNEL'
-            var page = 1;
-            var pageSize = 100;
-            var axios = require('axios');
-            var config = {
-                method: 'GET',
-                url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
-                headers: { 
-                    'Content-Type' : 'application/json',
-                    'authorization': rest.token
-                },
-                validateStatus: () => true
-            };
-            axios(config)
-            .then(async (response)=> 
-            {
-                // console.log(response.data);
-                if(response.status == 200)
+        const config = await conn_pg.query("SELECT shop.client_id, shop.channel_id, shop.shop_configuration_id, cl.api_key, shop.shop_name, shop.fs_id, shop.token, shop.partial_integration FROM client cl LEFT JOIN shopconfiguration shop ON cl.client_id = shop.client_id LEFT JOIN channel ch ON shop.channel_id = ch.channel_id WHERE ch.name = 'JUBELIO' AND shop.active = 1 AND shop.get_order = 1");
+        if(config.rowCount == 0)
+        {
+            res.json({
+                status: false,
+                message: "Shop not found"
+            });
+        }
+        else
+        {
+            const date = moment().format("YYYY-MM-DD HH:mm:ss");
+            var configs = config.rows;
+            configs.forEach(function(rest)
+            {     
+                var orderType   = "Sales Order";   
+                var channelName = 'JUBELIO';   
+                // rest.multi_channel == 1 ? stockType = 'MULTI CHANNEL' : stockType = channelName;
+                var stockType = 'MULTI CHANNEL'
+                var page = 1;
+                var pageSize = 100;
+                var axios = require('axios');
+                var config = {
+                    method: 'GET',
+                    url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
+                    headers: { 
+                        'Content-Type' : 'application/json',
+                        'authorization': rest.token
+                    },
+                    validateStatus: () => true
+                };
+                axios(config)
+                .then(async (response)=> 
                 {
-                    if(response.data.totalCount > 0){
-                        var data = response.data;
-                        var allGetOrders = data.data;
-                        var totalCount = data.totalCount;
-                        // console.log(allGetOrders);
-                        do {
-                            var isNextPage = getNextPage(page, pageSize, totalCount);
-                            if (isNextPage == true) {             
-                                page++;
-                                // console.log(payload);
+                    if(response.status == 200)
+                    {
+                        if(response.data.totalCount > 0){
+                            var data = response.data;
+                            var allGetOrders = data.data;
+                            var totalCount = data.totalCount;
+                            // console.log(allGetOrders);
+                            do {
+                                var isNextPage = getNextPage(page, pageSize, totalCount);
+                                if (isNextPage == true) {             
+                                    page++;
+                                    // console.log(payload);
+                                    var axios = require('axios');
+                                    var config = {
+                                        method: 'GET',
+                                        url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
+                                        headers: { 
+                                            'Content-Type' : 'application/json',
+                                            'authorization': rest.token
+                                        },
+                                        validateStatus: () => true
+                                    };
+                                    axios(config)
+                                    .then(async (response2)=> 
+                                    {
+                                        var data2 = response2.data;
+                                        if(response2.status == 200)
+                                        {
+                                            isNextPage = getNextPage(page, pageSize, totalCount);
+                                            var nextArraygetOrders = data2.data;
+                                            allGetOrders = arrayUnique(allGetOrders.concat(nextArraygetOrders));
+                                        } else {
+                                            res.json({
+                                                status : false,
+                                                message: "failed",
+                                                data   : response2.data
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    break;
+                                }
+                            } while (isNextPage == true);
+                            
+                            allGetOrders.forEach(function(allGetOrder)
+                            {  
+                                var salesOrderNo = allGetOrder.salesorder_no;
+                                var sourceName   = allGetOrder.source_name;
+                                var orderCode    = salesOrderNo;                        
+                                var is_prefix = salesOrderNo.indexOf("-");
+                                if(is_prefix) {
+                                    var explodeOrderCode = salesOrderNo.split("-");
+                                    orderCode = explodeOrderCode[1];
+                                }
+                                var salesOrderId = allGetOrder.salesorder_id;
                                 var axios = require('axios');
                                 var config = {
                                     method: 'GET',
-                                    url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
+                                    url   : "https://api.jubelio.com/sales/orders/"+salesOrderId,
                                     headers: { 
                                         'Content-Type' : 'application/json',
                                         'authorization': rest.token
@@ -279,211 +323,195 @@ async function getOrders (req,res,next)
                                     validateStatus: () => true
                                 };
                                 axios(config)
-                                .then(async (response2)=> 
+                                .then(async (responseSo)=> 
                                 {
-                                    var data2 = response2.data;
-                                    if(response2.status == 200)
+                                    var getSalesOrder = responseSo.data;
+                                    if(responseSo.status == 200)
                                     {
-                                        isNextPage = getNextPage(page, pageSize, totalCount);
-                                        var nextArraygetOrders = data2.data;
-                                        allGetOrders = arrayUnique(allGetOrders.concat(nextArraygetOrders));
-                                    } else {
-                                        res.json({
-                                            status : false,
-                                            message: "failed",
-                                            data   : response2.data
-                                        });
-                                    }
-                                });
-                            } else {
-                                break;
-                            }
-                        } while (isNextPage == true);
-                        
-                        allGetOrders.forEach(function(allGetOrder)
-                        {  
-                            var salesOrderNo = allGetOrder.salesorder_no;
-                            var sourceName   = allGetOrder.source_name;
-                            var orderCode    = salesOrderNo;                        
-                            var is_prefix = salesOrderNo.indexOf("-");
-                            if(is_prefix) {
-                                var explodeOrderCode = salesOrderNo.split("-");
-                                orderCode = explodeOrderCode[1];
-                            }
-                            var salesOrderId = allGetOrder.salesorder_id;
-                            var axios = require('axios');
-                            var config = {
-                                method: 'GET',
-                                url   : "https://api.jubelio.com/sales/orders/"+salesOrderId,
-                                headers: { 
-                                    'Content-Type' : 'application/json',
-                                    'authorization': rest.token
-                                },
-                                validateStatus: () => true
-                            };
-                            axios(config)
-                            .then(async (responseSo)=> 
-                            {
-                                var getSalesOrder = responseSo.data;
-                                if(responseSo.status == 200)
-                                {
-                                    // console.log(getSalesOrder)
-                                    var locationIdJubelio = getSalesOrder.location_id;
-                                    let checkMappingLocations = await checkShopLocation(locationIdJubelio,rest.shop_configuration_id);
-                                    // console.log(checkMappingLocations);
-                                    if(checkMappingLocations)
-                                    {
-                                        checkMappingLocations.forEach(async function(checkMappingLocation)
-                                        {                                  
-                                            let isInOrders = await checkOrderCode(orderCode);
-                                            if(!isInOrders)
-                                            {
-                                                let isStockTypes = await checkStockType(rest.client_id,stockType);
-                                                if(isStockTypes){
-                                                    isStockTypes.forEach(async function(isStockType)
+                                        var locationIdJubelio = getSalesOrder.location_id;
+                                        let checkMappingLocations = await checkShopLocation(locationIdJubelio,rest.shop_configuration_id);
+                                        // console.log(checkMappingLocations);
+                                        if(checkMappingLocations)
+                                        {
+                                            checkMappingLocations.forEach(async function(checkMappingLocation)
+                                            {                                  
+                                                let isInOrders = await checkOrderCode(orderCode);
+                                                if(!isInOrders)
+                                                {
+                                                    let isStockTypes = await checkStockType(rest.client_id,stockType);
+                                                    if(isStockTypes)
                                                     {
-                                                        var stockTypeId = isStockType.stock_type_id;
-                                                        if (!getSalesOrder.shipper) {
-                                                            if (sourceName == "LAZADA") {
-                                                                var courier = "Lazada Express";
+                                                        isStockTypes.forEach(async function(isStockType)
+                                                        {
+                                                            var stockTypeId = isStockType.stock_type_id;
+                                                            if (!getSalesOrder.shipper) {
+                                                                if (sourceName == "LAZADA") {
+                                                                    var courier = "Lazada Express";
+                                                                } else {
+                                                                    var courier = "JNE REG";
+                                                                }
                                                             } else {
-                                                                var courier = "JNE REG";
+                                                                var courier = getSalesOrder.shipper;
                                                             }
-                                                        } else {
-                                                            var courier = getSalesOrder.shipper;
+
+                                                            let isCourierMapped = await findCourier(courier, channelName); 
+                                                            if(isCourierMapped)
+                                                            {
+                                                                isCourierMapped.forEach(async function(CourierMapped)
+                                                                {  
+                                                                    var items = getSalesOrder.items;
+                                                                    let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
+                                                                    console.log(callStore);
+                                                                    // if(callStore)
+                                                                    // {    
+                                                                    //     messageSuccessOrder = {
+                                                                    //         status : 200,
+                                                                    //         message : "Success Create Order",
+                                                                    //         detail : {
+                                                                    //             data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
+                                                                    //         }
+                                                                    //     };
+                                                                    //     // console.log(messageSuccessOrder);
+                                                                    //     res.json({messageSuccessOrder});
+                                                                    // }
+                                                                    // else{
+                                                                    //     // pg.query("ROLLBACK");
+                                                                    //     var messageFailedDetail = {
+                                                                    //         status : 500,
+                                                                    //         message : "Failed to create order",
+                                                                    //         detail : {
+                                                                    //             data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
+                                                                    //         }
+                                                                    //     };
+                                                                    //     // return messageFailedDetail;
+                                                                    //     res.json({messageFailedDetail});
+                                                                    // }
+                                                                });
+                                                            } 
+                                                            else
+                                                            {
+                                                                console.log(courier)
+                                                                // messageError = {
+                                                                //     status : 500,
+                                                                //     message : "Failed to create order",
+                                                                //     detail : {
+                                                                //         data : "ORDERCODE "+orderCode+" FAILED TO CREATE BECAUSE, COURIER "+courier+" NOT FOUND IN MAPPING COURIER"
+                                                                //     }
+                                                                // };
+                
+                                                                // let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, courier, JSON.stringify(messageError), date]);
+                                                                
+                                                                // console.log(messageError);
+                                                                // res.json(messageError);
+                                                            }
+                                                        });
+                                                    }
+                                                    else
+                                                    {
+                                                        messageError = {
+                                                            status : 500,
+                                                            message : "Stock Type Not Mapping",
+                                                            detail : {
+                                                                data : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
+                                                            }
                                                         }
 
-                                                        let isCourierMapped = await findCourier(courier, channelName); 
-                                                        if(isCourierMapped)
-                                                        {
-                                                            isCourierMapped.forEach(async function(CourierMapped)
-                                                            {  
-                                                                var items = getSalesOrder.items;
-                                                                let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
-                                                                console.log(callStore);
-                                                                // if(callStore)
-                                                                // {    
-                                                                //     messageSuccessOrder = {
-                                                                //         status : 200,
-                                                                //         message : "Success Create Order",
-                                                                //         detail : {
-                                                                //             data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
-                                                                //         }
-                                                                //     };
-                                                                //     // console.log(messageSuccessOrder);
-                                                                //     res.json({messageSuccessOrder});
-                                                                // }
-                                                                // else{
-                                                                //     // pg.query("ROLLBACK");
-                                                                //     var messageFailedDetail = {
-                                                                //         status : 500,
-                                                                //         message : "Failed to create order",
-                                                                //         detail : {
-                                                                //             data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
-                                                                //         }
-                                                                //     };
-                                                                //     // return messageFailedDetail;
-                                                                //     res.json({messageFailedDetail});
-                                                                // }
-                                                            });
-                                                        } 
-                                                        else{
-                                                            res.json({
-                                                                status : 500,
-                                                                message : "Failed to create order",
-                                                                detail : {
-                                                                    data : "ORDERCODE "+orderCode+" FAILED TO CREATE BECAUSE, COURIER "+courier+" NOT FOUND IN MAPPING COURIER"
-                                                                }
-                                                            });
-                                                        }
-                                                    });
-                                                }
-                                                else
-                                                {
-                                                    res.json({
-                                                        status : 500,
-                                                        message : "Stock Type Not Mapping",
-                                                        detail : {
-                                                            data : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                            else{
-                                                res.json({
-                                                    status : 500,
-                                                    message: "Order Code Already",
-                                                    detail : {
-                                                        data : "GET ORDERS - order Code "+orderCode+" already exist"
+                                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, stockType, JSON.stringify(messageError), date]);
+
+                                                        res.json(messageError);
                                                     }
-                                                });
+                                                }
+                                                else{
+                                                    messageError = {
+                                                        status : 500,
+                                                        message: "Order Code Already",
+                                                        detail : {
+                                                            data : "GET ORDERS - order Code "+orderCode+" already exist"
+                                                        }
+                                                    }
+
+                                                    let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date]);
+
+                                                    res.json(messageError);
+                                                }
+                                            });       
+                                        }
+                                        else{
+                                            messageError = {
+                                                status : false,
+                                                message: "failed",
+                                                data   : "Please Check Your Mapping Location"
                                             }
-                                        });       
+                                            
+                                            let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date, locationIdJubelio]);
+                                            res.json(messageError);
+                                        }         
                                     }
-                                    else{
-                                        res.json({
+                                    else
+                                    {
+                                        messageError = {
                                             status : false,
                                             message: "failed",
-                                            data   : "Please Check Your Mapping Location"
-                                        });
-                                    }         
-                                }
-                                else
+                                            data   : responseSo.data
+                                        }
+                                        
+                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date]);
+                                        res.json(messageError);
+                                    }
+                                })
+                                .catch(function (error) 
                                 {
                                     res.json({
                                         status : false,
                                         message: "failed",
-                                        data   : responseSo.data
+                                        data   : error
                                     });
-                                }
-                            })
-                            .catch(function (error) 
-                            {
-                                res.json({
-                                    status : false,
-                                    message: "failed",
-                                    data   : error
                                 });
                             });
-                        });
+                        }
+                        else
+                        {
+                            messageError = {
+                                status : false,
+                                message: "failed",
+                                data   : "Order Not Found"
+                            }
+                            
+                            let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, result, created_date) VALUES ($1, $2, $3, $4)",[rest.client_id, rest.shop_configuration_id, JSON.stringify(messageError), date]);
+                            res.json(messageError);
+                        }
                     }
                     else
                     {
-                        res.json({
+                        messageError = {
                             status : false,
                             message: "failed",
-                            data   : "Order Not Found"
-                        });
+                            data   : response.data
+                        }
+                        
+                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, result, created_date) VALUES ($1, $2, $3, $4)",[rest.client_id, rest.shop_configuration_id, JSON.stringify(messageError), date]);
+                        res.json(messageError);
                     }
-                }
-                else
+                })
+                .catch(function (error) 
                 {
                     res.json({
                         status : false,
                         message: "failed",
-                        data   : response.data
+                        data   : error
                     });
-                }
-            })
-            .catch(function (error) 
-            {
-                res.json({
-                    status : false,
-                    message: "failed",
-                    data   : error
                 });
             });
+        }
+    } 
+    catch (error) 
+    {
+        res.json({
+            status : false,
+            message: "failed",
+            data   : "Server error"
         });
     }
-  } 
-  catch (error) 
-  {
-    res.json({
-        status : false,
-        message: "failed",
-        data   : "Server error"
-    });
-  }
 }
 
 async function postPicklist(req,res)
@@ -1566,250 +1594,7 @@ async function storeItems(variant, shop_configuration_id, client_id,req,res,next
     }
 }
 
-/*async function storeOrders(getSalesOrder, items, Configuration, channelName, stockType, salesOrderNo, orderCode, location, sourceName, orderType, res, req, next)
-{
-    var messageSuccessOrder = {};
-    var itemModel           = [];
-    var noItemModel         = {};
-    var noItemModelNull     = {};
-    var noItemMapping       = {};
-    var shopConfigurationId = Configuration.shop_configuration_id;
-    var clientId            = Configuration.client_id;
-    var channelId           = Configuration.channel_id;
-    var locationId          = location.locationid;
-    var items               = getSalesOrder.items;
-    var notes               = channelName+"-"+sourceName;
-    var remark              = getSalesOrder.note;
-    var salesOrderNo        = salesOrderNo.replace(/ /g, "");
-    var orderCode           = orderCode.replace(/ /g, "");
-    var stockSource         = "GOOD STOCK";
-
-    if (getSalesOrder.is_cod == true) {
-        var paymentType = "COD";
-
-        if (sourceName == "SHOPEE") {
-            var codPrice = parseInt(getSalesOrder.total_amount_mp);
-        } else if (sourceName == "LAZADA") {
-            var codPrice = parseInt(getSalesOrder.grand_total + getSalesOrder.buyer_shipping_cost);
-        } else {
-            var codPrice = parseInt(getSalesOrder.grand_total);
-        }
-    } else {
-        var paymentType = "NON COD";
-        var codPrice = 0;
-    }
-
-    var paymentId = 0;
-    if(paymentType == "COD")
-    {
-        paymentId = 1;
-    }
-    else
-    {
-        paymentId = 2;
-    }
-
-    if (!getSalesOrder.shipper) {
-        if (sourceName == "LAZADA") {
-            var courier = "Lazada Express";
-        } else {
-            var courier = "JNE REG";
-        }
-    } else {
-        var courier = getSalesOrder.shipper;
-    }
-
-    let isStockTypes = await checkStockType(clientId,stockType);
-    if(isStockTypes){
-        isStockTypes.forEach(async function(isStockType)
-        {
-            var stockTypeId = isStockType.stock_type_id;
-            if(orderType == 'Sales Order')
-            {
-                var orderTypeId = 1;
-            }
-            let isCourierMapped = await findCourier(courier, channelName); 
-            if(isCourierMapped)
-            {
-                isCourierMapped.forEach(async function(CourierMapped)
-                {  
-                    if(CourierMapped)
-                    {
-                        var discountPoint    = parseInt(getSalesOrder.total_disc);
-                        var discountSeller   = 0;
-                        var discountPlatform = 0;
-                        var shippingPrice    = parseInt(getSalesOrder.shipping_cost);
-                        var date             = getSalesOrder.created_date.replace('T', " ");
-                        var timeStamp        = date.replace('.991Z', "");
-                        var name             = getSalesOrder.shipping_full_name;
-                        var phone            = "-";
-                        if(getSalesOrder.shipping_phone)
-                        {
-                            phone = getSalesOrder.shipping_phone;
-                        }
-
-                        var address       = getSalesOrder.shipping_address+", "+getSalesOrder.shipping_area+", "+getSalesOrder.shipping_city+", "+getSalesOrder.shipping_province+", "+getSalesOrder.shipping_country;
-                        var email         = null;
-                        var district      = getSalesOrder.shipping_area;
-                        var city          = getSalesOrder.shipping_city;
-                        var province      = getSalesOrder.shipping_province;
-                        var country       = getSalesOrder.shipping_country;
-                        var postal_code   = getSalesOrder.shipping_post_code;
-                        var refOrderId    = getSalesOrder.salesorder_id;
-                        var bookingNumber = getSalesOrder.tracking_no;
-                        var waybillNumber = "";
-                        var totalPrice    = parseInt(getSalesOrder.grand_total);
-                        var remarks       = getSalesOrder.customer_name+" - "+salesOrderNo+" - "+remark;
-                        
-                        // console.log(CourierMapped);
-                        let pg = await conn_pg.connect();
-                        try
-                        {
-                            await pg.query('BEGIN')
-                            let insert = await insertIntoHeaderOrder(orderCode, clientId, channelId, shopConfigurationId, stockTypeId, orderTypeId, CourierMapped.delivery_type_id, locationId, refOrderId, bookingNumber, waybillNumber, totalPrice, name, phone, address, email, district, city, province, country, postal_code, timeStamp, discountPoint, discountSeller, discountPlatform, shippingPrice, paymentId, codPrice, remarks, notes, stockSource);
-                            if(insert)
-                            {    
-                                insert.forEach(async function(orderHeader)
-                                {      
-                                    let insertJobPush = await insertIntoJobPushOrder(orderHeader.order_header_id);
-                                    if(insertJobPush)
-                                    {
-                                        let insertHistory = await insertIntoHistoryOrder(orderHeader.order_header_id,orderHeader.status_id);
-                                        if(!insertHistory)
-                                        {
-                                            pg.query("ROLLBACK");
-                                        }  
-                                        
-                                        let insertTmpretry = await insertIntoTmpRetry(orderHeader.order_header_id,channelId,shopConfigurationId,refOrderId);
-                                        if(!insertTmpretry)
-                                        {
-                                            pg.query("ROLLBACK");
-                                        }
-
-                                        items.forEach(async function(item)
-                                        {  
-                                            var fbm = item.fbm;
-                                            if(fbm != "fbl")
-                                            {                
-                                                var variantId = item.item_id;
-                                                var itemCode = item.item_code;
-                                                let isInMappings = await checkMappingVariant(variantId,shopConfigurationId);   
-                                                if(isInMappings)   
-                                                {  
-                                                    isInMappings.forEach(async function(isInMapping)
-                                                    {  
-                                                        if(isInMapping.item_id != null)
-                                                        {
-                                                            var weight         = parseInt(item.weight_in_gram);
-                                                            var unit_price     = parseInt(item.original_price);
-                                                            var totalUnitPrice = parseInt(item.qty_in_base*item.original_price);
-                                                            var quantity       = parseInt(item.qty_in_base);
-                                                            let insertDetail = await insertIntoDetailOrder(orderCode, orderHeader.order_header_id, isInMapping.item_id, quantity, unit_price, totalUnitPrice, weight);
-                                                            if(insertDetail)
-                                                            {    
-                                                                messageSuccessOrder = {
-                                                                    status : 200,
-                                                                    message : "Success Create Order",
-                                                                    detail : {
-                                                                        data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
-                                                                    }
-                                                                };
-                                                                console.log(messageSuccessOrder);
-                                                            }
-                                                            else{
-                                                                pg.query("ROLLBACK");
-                                                                var messageFailedDetail = {
-                                                                    status : 500,
-                                                                    message : "Failed to create order",
-                                                                    detail : {
-                                                                        data : "GET ORDERS - Order code "+orderCode+" failed to create detail"
-                                                                    }
-                                                                };
-                                                                return messageFailedDetail;
-                                                            }
-                                                        }
-                                                        else
-                                                        {
-                                                            pg.query("ROLLBACK");
-                                                            var messageAlreadyExist = {
-                                                                status : 500,
-                                                                message : "Item Not Mapping",
-                                                                detail : {
-                                                                    data : "GET ORDERS - Itemcode "+variantId+" Not Mapping Item_id"
-                                                                }
-                                                            };
-                                                            console.log(messageAlreadyExist);
-                                                        }
-                                                    });
-                                                }
-                                                else
-                                                {
-                                                    pg.query("ROLLBACK");
-                                                    var messageAlreadyExist = {
-                                                        status : 500,
-                                                        message : "Item Not Mapping",
-                                                        detail : {
-                                                            data : "GET ORDERS - Itemcode "+variantId+" Not Mapping"
-                                                        }
-                                                    };
-                                                    console.log(messageAlreadyExist);
-                                                }
-                                            }
-                                            else{
-                                                pg.query("ROLLBACK");
-                                            }
-                                        });
-                                    }
-                                    else{
-                                        pg.query("ROLLBACK");
-                                    }
-                                });
-                            }
-                            else{
-                                pg.query("ROLLBACK");
-                                res.json({
-                                    status : 500,
-                                    message : "Failed to create order",
-                                    detail : {
-                                        data : "ORDERCODE "+orderCode+" FAILED TO CREATE HEADER"
-                                    }
-                                });
-                            }
-                        } 
-                        catch (error) 
-                        {
-                            // transaction.rollback();
-                            res.json({
-                                status : false,
-                                message: "failed",
-                                data   : "Server error"
-                            });
-                        }
-                    }
-                });
-            } 
-            else{
-                res.json({
-                    status : 500,
-                    message : "Failed to create order",
-                        data : "ORDERCODE "+orderCode+" FAILED TO CREATE BECAUSE, COURIER "+courier+" NOT FOUND IN MAPPING COURIER"
-                });
-            }
-        });
-    }
-    else
-    {
-        res.json({
-            status : 500,
-            message : "Stock Type Not Mapping",
-            detail : {
-                data : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
-            }
-        });
-    }
-}*/
-
-async function storeOrders(getSalesOrder, items, Configuration, channelName, stockType, salesOrderNo, orderCode, location, sourceName, orderType, CourierMapped, req, res, next)
+async function storeOrders(getSalesOrder, items, Configuration, channelName, stockType, salesOrderNo, orderCode, location,sourceName, orderType, CourierMapped, req, res, next)
 {
     const pg = await conn_pg.connect();
     try
