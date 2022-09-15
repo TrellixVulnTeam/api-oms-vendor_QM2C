@@ -595,8 +595,9 @@ async function getOrders (req,res,next)
                                     {
                                         checkMappingLocations.forEach(async function(checkMappingLocation)
                                         {                 
-                                            var date                = value.created_at.replace('T', " ");
-                                            var timeStamp           = date.replace('.000Z', "");
+                                            var dates               = new Date(value.created_at);
+                                            let month               = await setMonth(dates.getMonth());
+                                            var timeStamp           = dates.getFullYear()+"-"+month+"-"+dates.getDate()+" "+dates.getHours()+":"+dates.getMinutes()+":"+dates.getSeconds();
                                             var shipping            = value.delivery.requested_carrier;
                                             var locationId          = checkMappingLocation.location_id;
                                             var refOrderId          = value.id;
@@ -1498,6 +1499,38 @@ async function updateAwbByOrderHeaderId(awbNumber,headerId)
     {
         return updateCob;
     }
+}
+
+//setDate
+async function setMonth(date)
+{
+    var mounth = '';
+    if(date == 0)
+        mounth = "01"
+    if(date == 1)
+        mounth = "02"
+    if(date == 2)
+        mounth = "03"
+    if(date == 3)
+        mounth = "04"
+    if(date == 4)
+        mounth = "05"
+    if(date == 5)
+        mounth = "06"
+    if(date == 6)
+        mounth = "07"
+    if(date == 7)
+        mounth = "08"
+    if(date == 8)
+        mounth = "09"
+    if(date == 9)
+        mounth = "10"
+    if(date == 10)
+        mounth = "11"
+    if(date == 11)
+        mounth = "12"
+
+    return mounth;
 }
 
 module.exports ={
