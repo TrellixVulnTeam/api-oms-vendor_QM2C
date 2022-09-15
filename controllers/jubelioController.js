@@ -361,21 +361,21 @@ async function getOrders (req,res,next)
                                                             {
                                                                 var items = getSalesOrder.items;
                                                                 let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
-                                                                console.log(callStore);
-                                                                if(callStore)
-                                                                {    
-                                                                    messageSuccess = {
-                                                                        data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
-                                                                    };
-                                                                    isu.push(messageSuccess);
-                                                                }
-                                                                else{
-                                                                    // pg.query("ROLLBACK");
-                                                                    messageError = {
-                                                                        data : "GET ORDERS - Order code "+orderCode+" has created header and detail Failed"
-                                                                    };
-                                                                    isi.push(messageError);
-                                                                }
+                                                                // console.log(callStore);
+                                                                // if(callStore)
+                                                                // {    
+                                                                //     messageSuccess = {
+                                                                //         data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
+                                                                //     };
+                                                                //     isu.push(messageSuccess);
+                                                                // }
+                                                                // else{
+                                                                //     // pg.query("ROLLBACK");
+                                                                //     messageError = {
+                                                                //         data : "GET ORDERS - Order code "+orderCode+" has created header and detail Failed"
+                                                                //     };
+                                                                //     isi.push(messageError);
+                                                                // }
                                                             }
                                                         } 
                                                         else{
@@ -1647,8 +1647,8 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
         var discountSeller   = 0;
         var discountPlatform = 0;
         var shippingPrice    = parseInt(getSalesOrder.shipping_cost);
-        var dates            = getSalesOrder.created_date.replace('T', " ");
-        var timeStamp        = dates.replace('.991Z', "");
+        var dates            = new Date(getSalesOrder.created_date);
+        var timeStamp        = dates.getFullYear()+"-"+dates.getMonth()+"-"+dates.getDate()+" "+dates.getHours()+":"+dates.getMinutes()+":"+dates.getSeconds();
         var recipientName    = getSalesOrder.shipping_full_name;
         var recipientPhone   = "-";
         if(getSalesOrder.shipping_phone)
@@ -1769,11 +1769,11 @@ async function storeOrders(getSalesOrder, items, Configuration, channelName, sto
             let logapi  = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, null, $4, $5, null)",[clientId, shopConfigurationId, orderCode, JSON.stringify(messageNullItemId), date]);
             messageAlreadyExist.push(messageNullItemId)
         }
-        return res.json({
-            status:500,
-            messasge:"Failed",
-            data:isi
-        });
+        // return res.json({
+        //     status:500,
+        //     messasge:"Failed",
+        //     data:isi
+        // });
     }  catch (e) {
         await pg.query('ROLLBACK')
         throw e
