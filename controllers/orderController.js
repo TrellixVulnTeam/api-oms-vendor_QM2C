@@ -395,106 +395,15 @@ exports.saveOrder = async (req, res, next) => {
             });
         }
 
-        if(req.body.location==='undefine'||!req.body.location){
-            return res.status(422).json({
-                message: "location shouldn't be empty"
-            });
-        }else{
-            const querySelect='SELECT * from location where code = $1' ;        
-            const row = await pg.query(querySelect,[req.body.location]);
-            if(row.rowCount == 0){
-                 return res.status(422).json({
-                    message: "Location not found",
-                });
-            }else{
-                req.body.location_id = row.rows[0].location_id;
-            }
-        }
-
-        if (req.body.detail.length > 0) {
-            req.body.detail.forEach(async data => {
-                if(data.item==='undefine'||!data.item){
-                    return res.status(422).json({
-                        message: "item_id in detail shouldn't be empty"
-                    });
-                }else{
-                    const querySelectItem='SELECT * from item where code = $1 limit 1' ;        
-                    const rowItem = await pg.query(querySelectItem,[data.item]);
-                    if(rowItem.rowCount == 0){
-                        return res.status(422).json({
-                            message: "detail item code not found",
-                        });
-                    }
-                    else{
-                        const querySelectClient='SELECT * from client where id = $1 limit 1' ;        
-                        const rowClient = await pg.query(querySelectClient,[rowItem.rows[0].client_id]);
-                        if(rowClient.rowCount == 0){
-                            return res.status(422).json({
-                                message: "detail client_id not found",
-                            });
-                        }
-                        else{
-                            if (rowItem.rows[0].name !== req.body.client) {
-                                return res.status(422).json({
-                                    message: "client not same with detail.",
-                                });
-                            }
-                            
-                        }
-
-                        const querySelectInventory='SELECT * from inventory where item_id = $1 limit 1' ;        
-                        const rowInventory = await pg.query(querySelectInventory,[rowItem.rows[0].item_id]);
-                        if(rowInventory.rowCount == 0){
-                            return res.status(422).json({
-                                message: "detail inventory not found",
-                            });
-                        }
-                        else{
-                            if (data.order_quantity > rowInventory.rows[0].exist_quantity) {
-                                return res.status(422).json({
-                                    message: "detail order_quantity should be less than exist_quantity.",
-                                });
-                            }else if (req.body.location_id != rowInventory.rows[0].location_id) {
-                                return res.status(422).json({
-                                    message: "detail location not same",
-                                });
-                            }
-                        }
-
-                        
-                    }
-                }  
-                
-                if(data.order_quantity==='undefine'||!data.order_quantity){
-                    return res.status(422).json({
-                        message: "order_quantity in detail shouldn't be empty"
-                    });
-                }
-
-                if(data.unit_weight==='undefine'||!data.unit_weight){
-                    return res.status(422).json({
-                        message: "unit_weight in detail shouldn't be empty"
-                    });
-                }
-            });
-            
-        }else{
-            return res.status(422).json({
-                message: "details shouldn't be empty"
-            });
-        }
-
-        
-        // check if null
-        
-
         if(req.body.order_code==='undefine'||!req.body.order_code){
             return res.status(422).json({
                 message: "order_code shouldn't be empty"
             });
         }else{
-            const querySelect='SELECT * from orderheader where order_code = $1' ;        
-            const row = await pg.query(querySelect,[req.body.order_code]);
+            console.log("masuk else")
+            const querySelectOrderHeader='SELECT * from orderheader where order_code = $1' ;        
+            const row = await pg.query(querySelectOrderHeader,[req.body.order_code]);
+            console.log(row)
             if(row.rowCount > 1){
                 return res.status(422).json({
                     message: "order_code already exist",
@@ -515,6 +424,24 @@ exports.saveOrder = async (req, res, next) => {
                 });
             }else{
                 req.body.client_id = row.rows[0].client_id;
+            }
+        }
+
+        console.log("masuk cleint")
+
+        if(req.body.location==='undefine'||!req.body.location){
+            return res.status(422).json({
+                message: "location shouldn't be empty"
+            });
+        }else{
+            const querySelect='SELECT * from location where code = $1' ;        
+            const row = await pg.query(querySelect,[req.body.location]);
+            if(row.rowCount == 0){
+                 return res.status(422).json({
+                    message: "Location not found",
+                });
+            }else{
+                req.body.location_id = row.rows[0].location_id;
             }
         }
 
@@ -633,11 +560,89 @@ exports.saveOrder = async (req, res, next) => {
             }
         }
 
+        if (req.body.detail.length > 0) {
+            req.body.detail.forEach(async data => {
+                if(data.item==='undefine'||!data.item){
+                    return res.status(422).json({
+                        message: "item_id in detail shouldn't be empty"
+                    });
+                }else{
+                    const querySelectItem='SELECT * from item where code = $1' ;    
+                    const rowItem = await pg.query(querySelectItem,[data.item]);   
+                    if(rowItem.rowCount == 0){
+                        return res.status(422).json({
+                            message: "detail item code not found",
+                        });
+                    }
+                    else{
+                        let client_id = rowItem.rows[0].client_id
+                        const querySelectClient='SELECT * from client where client_id = $1' ;        
+                        const rowClient = await pg.query(querySelectClient,[client_id]);
+                        if(rowClient.rowCount == 0){
+                            return res.status(422).json({
+                                message: "detail client_id not found",
+                            });
+                        }
+                        else{
+                            if (client_id !== req.body.client_id) {
+                                return res.status(422).json({
+                                    message: "client not same with detail.",
+                                });
+                            }
+                            
+                        }
+
+                        const querySelectInventory='SELECT * from inventory where item_id = $1' ; 
+                        const rowInventory = await pg.query(querySelectInventory,[rowItem.rows[0].item_id]);
+                        if(rowInventory.rowCount == 0){
+                            return res.status(422).json({
+                                message: "detail inventory not found",
+                            });
+                        }
+                        else{
+                            if (data.order_quantity > rowInventory.rows[0].exist_quantity) {
+                                return res.status(422).json({
+                                    message: "detail order_quantity should be less than exist_quantity.",
+                                });
+                            }else if (req.body.location_id != rowInventory.rows[0].location_id) {
+                                return res.status(422).json({
+                                    message: "detail location not same",
+                                });
+                            }
+                        }
+
+                        
+                    }
+                }  
+                
+                if(data.order_quantity==='undefine'||!data.order_quantity){
+                    return res.status(422).json({
+                        message: "order_quantity in detail shouldn't be empty"
+                    });
+                }
+
+                if(data.unit_weight==='undefine'||!data.unit_weight){
+                    return res.status(422).json({
+                        message: "unit_weight in detail shouldn't be empty"
+                    });
+                }
+            });
+            
+        }else{
+            return res.status(422).json({
+                message: "details shouldn't be empty"
+            });
+        }
+
+        console.log("masuk 5")
+
         if(req.body.recipient_name==='undefine'||!req.body.recipient_name){
             return res.status(422).json({
                 message: "recipient_name shouldn't be empty"
             });
         }
+
+        console.log("masuk6")
 
         if(req.body.recipient_phone==='undefine'||!req.body.recipient_phone){
             return res.status(422).json({
@@ -772,6 +777,8 @@ exports.saveOrder = async (req, res, next) => {
         req.body.created_by = 0;
         req.body.modified_by = 0;
         req.body.payment_date = new Date();
+
+        console.log("console.log(8")
 
         const queryText = `INSERT INTO orderheader("order_code", "location_id", "location_to", "client_id", "shop_configuration_id", "status_id", "delivery_type_id", "payment_type_id", "distributor_id", "dropshipper_id", "channel_id", "stock_type_id", "order_type_id", "ref_order_id", "code", "order_date", "booking_number", "waybill_number", "recipient_name", "recipient_phone", "recipient_email", "recipient_address", "recipient_district", "recipient_city", "recipient_province", "recipient_country", "recipient_postal_code", "latitude", "longitude", "buyer_name", "buyer_phone", "buyer_email", "buyer_address", "buyer_district", "buyer_city", "buyer_province", "buyer_country", "buyer_postal_code", "total_koli", "total_weight", "shipping_price", "total_price", "cod_price", "dfod_price", "stock_source", "notes", "remark", "created_date", "modified_date", "created_by", "modified_by", "store_name", "created_name", "order_source", "discount", "merchant_name", "merchant_phone", "merchant_address", "merchant_country", "merchant_province", "merchant_city", "merchant_district", "isfulfillment", "discount_point", "discount_seller", "discount_platform", "discount_shipping", "payment_date", "flag_cob", "insurance", "wh_before", "order_type", "fullfilmenttype_configuration_id", "total_product_price", "is_insurance", "gift_notes")
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55,$56,$57,$58,$59,$60,$61,$62,$63,$64,$65,$66,$67,$68,$69,$70,$71,$72,$73,$74,$75,$76) RETURNING order_header_id`;
