@@ -160,6 +160,7 @@ router.get('/api/marketplace/tokopedia/test', tokopedia.test);
 router.get('/api/marketplace/tokopedia/getOrder', tokopedia.getOrder);
 router.get('/api/marketplace/tokopedia/shopInfo', tokopedia.shopInfo);
 router.get('/api/marketplace/tokopedia/getProduct', tokopedia.getProduct);
+router.post('/api/marketplace/tokopedia/postAckOrder',tokopedia.postAckOrder);
 
 // JUBELIO
 router.get('/api/marketplace/jubelio/getToken',jubelio.getToken);

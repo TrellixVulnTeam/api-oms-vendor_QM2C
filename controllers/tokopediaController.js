@@ -1054,15 +1054,145 @@ async function getProduct(req,res,next)
     }
 }
 
-async function saveProduct(configs,items)
+async function postAckOrder(req,res,next)
 {
-    let data = await conn_pg.query("INSERT INTO mappingitem( shop_configuration_id, product_id, product_code, product_name, variant_id, active, created_by, modified_by, created_date) VALUES ($1,$2,$3,$4,$5,1,0,0,NOW())",[configs.shop_configuration_id,items.product_id,items.sku,items.name,items.product_id]);
-    if(data.rowCount == 0)
+    try
     {
-        console.log("Success");
+        var messageSuccess = {};
+        var messageError = {};
+        var orderCode = req.body.orderCode;
+        if(!orderCode)
+        { 
+            res.send(JSON.stringify({
+                "status" : 500,
+                "message": 'failed',
+                "data"   : 'Order Code Must Be Declare'
+            })); 
+        }
+        else
+        {
+            if(orderCode == "")
+            {
+                res.send(JSON.stringify({
+                "status" : 500,
+                "message": 'failed',
+                "data"   : 'Order Code Cannot Be Empty'
+                })); 
+            }
+        }
+
+        let orders = await checkOrderCode(orderCode);
+        if(typeof orders === 'object'){
+            let shopconfigs = await getShopConfigId(orders.shop_configuration_id)
+            if(typeof shopconfigs === 'object'){
+                if(shopconfigs.accept_order == 1)
+                {
+                    var config = {
+                        method: 'GET',
+                        url   : 'https://fs.tokopedia.net/v1/order/'+orders.ref_order_id+'/fs/'+shopconfigs.fs_id+'/ack',
+                        headers: { 
+                            'Content-type' : 'application/json',
+                            'Content-Length': '0',
+                            'Authorization': 'Bearer '+shopconfigs.token
+                        }
+                    };
+                    axios(config)
+                    .then(async (response)=> {
+                        if(!response.data && response.data == "success")
+                        {
+                            $conditionAPI  = 1;
+                            $messageAPI = "SUCCESS ACCEPT ORDER";
+                            messageError = {
+                                status : 500,
+                                message: "SUCCESS",
+                                data   : "SUCCESS ACCEPT ORDER"
+                            };
+                            console.log(error.response)
+                        }
+                        else
+                        {
+                            var config = {
+                                method: 'GET',
+                                url   : 'https://fs.tokopedia.net/v1/order/'+orders.ref_order_id+'/fs/'+shopconfigs.fs_id+'/ack',
+                                headers: { 
+                                    'Content-type' : 'application/json',
+                                    'Content-Length': '0',
+                                    'Authorization': 'Bearer '+shopconfigs.token
+                                }
+                            };
+                            axios(config)
+                            .then(async (dec)=> {
+                                if(dec.data.order_status != 400 && dec.data.order_status != 500)
+                                {
+                                    messageError = {
+                                        status : 500,
+                                        message: "PLEASE CHECK STATUS ORDER IN MARKET PLACE",
+                                        data   : "STATUS IN MARKET PLACE IS "+dec.data.order_status
+                                    };
+                                    console.log(error.response)
+                                }
+                            })
+                            .catch(function (error) {
+                                // messageError = {
+                                //     status : error.response.header.error_code,
+                                //     message: error.response.header.messages,
+                                //     data   : error.response.header.reason
+                                // };
+                                console.log(error.response)
+                            });
+                        }
+                    })
+                    .catch(function (error) {
+                        // messageError = {
+                        //     status : error.response.header.error_code,
+                        //     message: error.response.header.messages,
+                        //     data   : error.response.header.reason
+                        // };
+                        console.log(error.response)
+                    });
+                }   
+                else{
+                    messageError = {
+                        status : 401,
+                        message : "NOT_AUTHORIZED",
+                        data : "ACK - THIS ORDER CODE "+orderCode+" DOESNT HAS PRIVILEGE TO SET FULFILLMENT"
+                    };
+                    // let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[order.client_id, shopConfigId, orderCode, salesOrderId, JSON.stringify(messageError), date, req.body]);
+                    // console.log(messageError);
+                    res.json(messageError);
+                }
+            }
+            else{
+                messageError = {
+                    status : 500,
+                    message : "FAILED GET ORDER CODE",
+                    data : "ACK - FAILED BECAUSE SHOPCONFIG "+orderCode+" NOT FOUND"
+                };
+                // console.log(messageError);
+                res.json(messageError);
+            }
+        }
+        else{
+            messageError = {
+                status : 500,
+                message : "FAILED GET ORDER CODE",
+                data : "ACK - FAILED BECAUSE "+orderCode+" NOT FOUND"
+            };
+            // console.log(messageError);
+            res.json(messageError);
+        }
+    }
+    catch (error) 
+    {
+        res.json({
+            status : false,
+            message: "failed",
+            data   : "Server error"
+        });
     }
 }
 
+//store
 async function storeOrders(orderCode, clientId, channelId, shopConfigurationId, stockTypeId, orderTypeId, deliveryTypeId, locationId, refOrderId, bookingNumber, waybillNumber, totalPrice, dataCust, timeStamp, totalProductPrice, discount, shippingPrice, discountShipping, paymentId, codPrice, remarks, shopName, stockSource, latitude, longitude, items)
 {
     // return orderCode;
@@ -1072,7 +1202,7 @@ async function storeOrders(orderCode, clientId, channelId, shopConfigurationId, 
         var statusId = 70;
         var createdName = "Automatic By System API";
         const date = moment().format("YYYY-MM-DD HH:mm:ss");
-        let orderheaders = await pg.query("INSERT INTO orderheader(order_code, location_id, client_id, shop_configuration_id, status_id, delivery_type_id, payment_type_id, channel_id, stock_type_id, order_type_id, ref_order_id, code, order_date, booking_number, waybill_number, recipient_name, recipient_phone, recipient_email, recipient_address, recipient_district, recipient_city, recipient_province, recipient_country, recipient_postal_code, latitude, longitude, total_koli, shipping_price, total_price, cod_price, dfod_price, stock_source, notes, remark, created_date, modified_date, created_by, modified_by, created_name, store_name, discount, discount_shipping, total_product_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, null, $18, $19, $20, $21, $22, $23, $24, $25, 0, $26, $27, $28, 0, $29, $30, $31, $32, $33, 0, 0, $34, $35, $36, $37, $38) RETURNING order_header_id, status_id",[orderCode, locationId, clientId, shopConfigurationId, statusId, deliveryTypeId, paymentId, channelId, stockTypeId, orderTypeId, refOrderId, orderCode, timeStamp, bookingNumber, waybillNumber, dataCust.recipient.name, dataCust.recipient.phone, dataCust.recipient.address.address_full, dataCust.recipient.address.district, dataCust.recipient.address.city, dataCust.recipient.address.province, dataCust.recipient.address.country, dataCust.recipient.address.postal_code, latitude, longitude, shippingPrice, totalPrice, codPrice, stockSource, remarks, remarks, date, date, createdName, shopName, discount, discountShipping, totalProductPrice]);
+        let orderheaders = await pg.query("INSERT INTO orderheader(order_code, location_id, client_id, shop_configuration_id, status_id, delivery_type_id, payment_type_id, channel_id, stock_type_id, order_type_id, ref_order_id, code, order_date, booking_number, waybill_number, recipient_name, recipient_phone, recipient_email, recipient_address, recipient_district, recipient_city, recipient_province, recipient_country, recipient_postal_code, latitude, longitude, total_koli, shipping_price, total_price, cod_price, dfod_price, stock_source, notes, remark, created_date, modified_date, created_by, modified_by, created_name, store_name, discount, discount_shipping, total_product_price, payment_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, null, $18, $19, $20, $21, $22, $23, $24, $25, 0, $26, $27, $28, 0, $29, $30, $31, $32, $33, 0, 0, $34, $35, $36, $37, $38, $39) RETURNING order_header_id, status_id",[orderCode, locationId, clientId, shopConfigurationId, statusId, deliveryTypeId, paymentId, channelId, stockTypeId, orderTypeId, refOrderId, orderCode, timeStamp, bookingNumber, waybillNumber, dataCust.recipient.name, dataCust.recipient.phone, dataCust.recipient.address.address_full, dataCust.recipient.address.district, dataCust.recipient.address.city, dataCust.recipient.address.province, dataCust.recipient.address.country, dataCust.recipient.address.postal_code, latitude, longitude, shippingPrice, totalPrice, codPrice, stockSource, remarks, remarks, date, date, createdName, shopName, discount, discountShipping, totalProductPrice, timeStamp]);
         var orderHeader = orderheaders.rows[0];
         if(orderheaders.rowCount > 0)
         {    
@@ -1170,7 +1300,7 @@ async function decryptTokped(playload){
 async function checkOrderCode(orderCode,clientId)
 {
     // var resIsInOrders = "";
-    let res_isInOrder = await conn_pg.query("SELECT code, order_code FROM orderheader WHERE code = $1 AND client_id = $2",[orderCode,clientId]);
+    let res_isInOrder = await conn_pg.query("SELECT code, order_code, ref_order_id, client_id FROM orderheader WHERE code = $1 AND client_id = $2",[orderCode,clientId]);
     var resIsInOrders = res_isInOrder.rows[0];
     // console.log(res_isInOrder.rows)
     if(res_isInOrder.rowCount > 0)
@@ -1235,6 +1365,17 @@ async function checkStockType(clientId,stockType)
     }
 }
 
+async function getShopConfigId(shopConfigId)
+{
+    var resultdetail = "";
+    let select = await conn_pg.query("SELECT shop.shop_configuration_id, shop.fs_id, shop.client_secret, shop.client_code, shop.shop_name, shop.accept_order, shop.token FROM client cl LEFT JOIN shopconfiguration shop ON cl.client_id = shop.client_id LEFT JOIN channel ch ON shop.channel_id = ch.channel_id WHERE shop.active = 1 AND shop.shop_configuration_id = $1",[shopConfigId]);
+    resultdetail = select.rows[0];
+    if(select.rowCount > 0)
+    {
+        return resultdetail;
+    }
+}
+
 async function dataTest(){
     var data = {
         status: 200,
@@ -1248,5 +1389,6 @@ module.exports ={
     test,
     getOrder,
     shopInfo,
-    getProduct
+    getProduct,
+    postAckOrder
 }
