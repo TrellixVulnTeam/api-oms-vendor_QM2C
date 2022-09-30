@@ -1274,10 +1274,8 @@ async function postsyncStocks(req,res)
                     var isSyncStock = client.update_stock;
                     var isMultiChannel = client.multi_channel;
                     var token = client.token;
-                    var stockType = "";
                     if(isSyncStock == 1)
                     {
-                        isMultiChannel == 1 ? stockType = "MULTI CHANNEL" : stockType = "JUBELIO";
                         let variants = await checkMappingItemCode(itemCode, shopConfigId);
                         if(variants){
                             for(let variant of variants){
@@ -1479,7 +1477,7 @@ async function postsyncStocks(req,res)
         res.json({
             status : false,
             message: "failed",
-            data   : "Server error"
+            data   : error
         });
     }
 }
@@ -1794,7 +1792,7 @@ async function getNextPage(page, pageSize, totalCount)
 async function getAuthClientByChannelAndShopConfigId(channelName,shopConfigId)
 {
     var resultdetail = "";
-    let select = await conn_pg.query("SELECT cl.client_id, cl.multi_channel, ch.channel_id, shop.token, shop.accept_order, shop.shop_name, shop.update_stock FROM client cl LEFT JOIN shopconfiguration shop ON cl.client_id = shop.client_id LEFT JOIN channel ch ON shop.channel_id = ch.channel_id WHERE shop.active = 1 AND ch.name = $1 AND shop.shop_configuration_id = $2",[channelName,shopConfigId]);
+    let select = await conn_pg.query("SELECT cl.client_id, ch.channel_id, shop.token, shop.accept_order, shop.shop_name, shop.update_stock FROM client cl LEFT JOIN shopconfiguration shop ON cl.client_id = shop.client_id LEFT JOIN channel ch ON shop.channel_id = ch.channel_id WHERE shop.active = 1 AND ch.name = $1 AND shop.shop_configuration_id = $2",[channelName,shopConfigId]);
     resultdetail = select.rows;
     if(select.rowCount > 0)
     {
