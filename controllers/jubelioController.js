@@ -1272,13 +1272,13 @@ async function postsyncStocks(req,res)
                     var channelId = client.channel_id;
                     var shopName = client.shop_name;                
                     var isSyncStock = client.update_stock;
-                    var isMultiChannel = client.multi_channel;
                     var token = client.token;
                     if(isSyncStock == 1)
                     {
                         let variants = await checkMappingItemCode(itemCode, shopConfigId);
                         if(variants){
                             for(let variant of variants){
+                                // console.log(variant)
                                 let MappingLocation = await checkShopLocationCode(locationCode, shopConfigId);
                                 if(MappingLocation)
                                 {
@@ -1449,7 +1449,7 @@ async function postsyncStocks(req,res)
                                 data : "SYNC STOCK - This shop "+shopName+" doesnt has privilege to sync stock "
                             }
                         };
-                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5)",[clientId, shopConfigId, JSON.stringify(messageError), date, req.body]);
+                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5)",[clientId, shopConfigId, JSON.stringify(messageError), datesTime, req.body]);
                         // console.log(messageError);
                         res.json(messageError);
                     }
