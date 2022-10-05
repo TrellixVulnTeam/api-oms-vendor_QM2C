@@ -1154,6 +1154,8 @@ async function postsyncStocks(req,res)
     {
         var messageSuccess = {};
         var messageError   = {};
+        const isi = [];
+        const isu = [];
         var validation     = null;
         var shopConfigId   = req.body.shop_configuration_id;
         var qtyInBase      = req.body.quantity;
@@ -1403,69 +1405,61 @@ async function postsyncStocks(req,res)
                                                 res.json(messageSuccess);
                                             } else {
                                                 messageError = {
-                                                    status : data.statusCode,
-                                                    message : data.error,
-                                                    detail : {
-                                                        data : "SYNC STOCK - "+data.message+" FOR "+shopName
-                                                    }
+                                                    data : "SYNC STOCK - "+data.message+" FOR "+shopName
                                                 };
                                                 let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[clientId, shopConfigId, itemCode, itemCode, JSON.stringify(messageError), datesTime, req.body]);
                                                 // console.log(messageError);
-                                                res.json(messageError);
+                                                // res.json(messageError);
+                                                isi.push(messageError);
                                             }
                                         });
                                     };
                                 }   
                                 else{
                                     messageError = {
-                                        status : 400,
-                                        message : "FAILED SYNC STOCK",
                                         data : "SYNC STOCK - FAILED TO SYNC STOCK FOR THIS SHOP "+shopName+" BECAUSE "+locationCode+" IS NOT FOUND IN MAPPING LOCATION"
                                     };
                                     let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[clientId, shopConfigId, itemCode, itemCode, JSON.stringify(messageError), datesTime, req.body]);
                                     // console.log(messageError);
-                                    res.json(messageError);
+                                    // res.json(messageError);
+                                    isi.push(messageError);
                                 }
                             };
                         }
                         else{
                             messageError = {
-                                status : 500,
-                                message : "FAILED SYNC STOCK",
-                                detail : {
-                                    data : "SYNC STOCK - This Item "+itemCode+" doesnt has variants"
-                                }
+                                data : "SYNC STOCK - This Item "+itemCode+" doesnt has variants"
                             };
                             let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[clientId, shopConfigId, itemCode, itemCode, JSON.stringify(messageError), datesTime, req.body]);
                             // console.log(messageError);
-                            res.json(messageError);
+                            // res.json(messageError);
+                            isi.push(messageError);
                         }
                     }
                     else{
                         messageError = {
-                            status : 500,
-                            message : "FAILED SYNC STOCK",
-                            detail : {
-                                data : "SYNC STOCK - This shop "+shopName+" doesnt has privilege to sync stock "
-                            }
+                            data : "SYNC STOCK - This shop "+shopName+" doesnt has privilege to sync stock "
                         };
                         let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5)",[clientId, shopConfigId, JSON.stringify(messageError), datesTime, req.body]);
                         // console.log(messageError);
-                        res.json(messageError);
+                        // res.json(messageError);
+                        isi.push(messageError);
                     }
                 };
             }
             else{
                 messageError = {
-                    status : 500,
-                    message : "FAILED SYNC STOCKT",
-                    detail : {
-                        data : "SYNC STOCK - FAILED BECAUSE SHOP CONFIGURATION NOT FOUND FROM THIS ID "+shopConfigId
-                    }
+                    data : "SYNC STOCK - FAILED BECAUSE SHOP CONFIGURATION NOT FOUND FROM THIS ID "+shopConfigId
                 };
+                isi.push(messageError);
                 // console.log(messageError);
-                res.json(messageError);
+                // res.json(messageError);
             }
+            res.json({
+                status:500,
+                messasge:"Failed",
+                data:isi
+            });
         }
         else{
             // console.log(validation);
