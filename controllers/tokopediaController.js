@@ -182,260 +182,263 @@ async function getOrder(req,res,next)
         }
         else
         {
-            const program = sql.rows[0];
-            var shopName = program.shop_name;
-            var i = 1;
-            var unix = moment().unix();
-            const fromDate = moment(unix) - (3600*24);
-            const toDate = moment(unix) + (3600*7);
-            // console.log(program)
-            for(i; i <= 10; i++)
+            // const program = sql.rows[0];   
+            for(const program of sql.rows)
             {
-                var config = {
-                    method: 'GET',
-                    // url   : 'https://fs.tokopedia.net/v2/order/list?fs_id='+program.fs_id+'&from_date='+fromDate+'&to_date='+toDate+'&page='+i+'&per_page=5&warehouse_id=9767451&status=220',
-                    url   : 'https://fs.tokopedia.net/v2/order/list?fs_id='+program.fs_id+'&from_date='+fromDate+'&to_date='+toDate+'&page='+i+'&per_page=5&warehouse_id=9767451',
-                    headers: { 
-                        'Content-type' : 'application/json',
-                        'Content-Length': '0',
-                        'Authorization': 'Bearer '+program.token
-                    }
-                };
-                axios(config)
-                .then(async (response)=> {
-                    // console.log(response.data.data)
-                    if((typeof response.data === 'object') && response.data != "" && response.data.data != null)
-                    {
+                var shopName = program.shop_name;
+                var i = 1;
+                var unix = moment().unix();
+                const fromDate = moment(unix) - (3600*24);
+                const toDate = moment(unix) + (3600*7);
+                // console.log(program)
+                for(i; i <= 10; i++)
+                {
+                    var config = {
+                        method: 'GET',
+                        // url   : 'https://fs.tokopedia.net/v2/order/list?fs_id='+program.fs_id+'&from_date='+fromDate+'&to_date='+toDate+'&page='+i+'&per_page=5&warehouse_id=9767451&status=220',
+                        url   : 'https://fs.tokopedia.net/v2/order/list?fs_id='+program.fs_id+'&from_date='+fromDate+'&to_date='+toDate+'&page='+i+'&per_page=5&warehouse_id=9767451',
+                        headers: { 
+                            'Content-type' : 'application/json',
+                            'Content-Length': '0',
+                            'Authorization': 'Bearer '+program.token
+                        }
+                    };
+                    axios(config)
+                    .then(async (response)=> {
                         // console.log(response.data.data)
-                        for(const orders of response.data.data)
+                        if((typeof response.data === 'object') && response.data != "" && response.data.data != null)
                         {
-                            let isInOrders = await checkOrderCode(orders.invoice_ref_num,program.client_id); 
-                            if(!isInOrders)
+                            // console.log(response.data.data)
+                            for(const orders of response.data.data)
                             {
-                                var notes = "";
-                                var items = {};
-                                var total_price       = orders.amt.ttl_amount;
-                                var discount          = orders.promo_order_detail.total_discount_product;
-                                var discountShipping = orders.promo_order_detail.total_discount_shipping;
-                                var totalProductPrice = (typeof orders.amt.ttl_product_price === 'object') ? orders.amt.ttl_product_price : 0;
-                                var shippingPrice     = orders.amt.shipping_cost;
-                                var stockType         = 'MULTI CHANNEL';
-                                var stockSource       = "GOOD STOCK";
-                                for(const item of orders.products)
+                                let isInOrders = await checkOrderCode(orders.invoice_ref_num,program.client_id); 
+                                if(!isInOrders)
                                 {
-                                    let res_mapping = await checkMappingItemId(item.id,program.shop_configuration_id);
-                                    if(res_mapping)
+                                    var notes = "";
+                                    var items = {};
+                                    var total_price       = orders.amt.ttl_amount;
+                                    var discount          = orders.promo_order_detail.total_discount_product;
+                                    var discountShipping = orders.promo_order_detail.total_discount_shipping;
+                                    var totalProductPrice = (typeof orders.amt.ttl_product_price === 'object') ? orders.amt.ttl_product_price : 0;
+                                    var shippingPrice     = orders.amt.shipping_cost;
+                                    var stockType         = 'MULTI CHANNEL';
+                                    var stockSource       = "GOOD STOCK";
+                                    for(const item of orders.products)
                                     {
-                                        if(res_mapping.item_id == "")
+                                        let res_mapping = await checkMappingItemId(item.id,program.shop_configuration_id);
+                                        if(res_mapping)
                                         {
-                                            messageError = {
-                                                status : 500,
-                                                message : program.shop_name+" - FAILED CREATE ORDER "+orders.invoice_ref_num,
-                                                data : "ORDER "+orders.invoice_ref_num+" ALREADY EXIST IN EOS"
-                                            };
-                                            // console.log(messageError); 
-                                            isi.push(messageError);
-                                        }
-                                        else{
-                                            items = {
-                                                item_id     : item.id,
-                                                item_code   : res_mapping.item_id,
-                                                quantity    : item.quantity,
-                                                item_weight : item.weight,
-                                                unit_price  : item.price,
-                                                remark	    : item.notes
-                                            } 
-                                            notes = item.notes+",";
-                                        } 
-                                    }
-                                    else{
-                                        var sku = (item.sku == "") ? item.id : item.sku.toUpperCase();
-                                        // console.log(sku)   
-                                        let resMapping = await checkMappingItemCode(sku,program.shop_configuration_id);
-                                        if(resMapping)
-                                        {
-                                            if(resMapping.item_id == "")
+                                            if(res_mapping.item_id == "")
                                             {
                                                 messageError = {
                                                     status : 500,
                                                     message : program.shop_name+" - FAILED CREATE ORDER "+orders.invoice_ref_num,
                                                     data : "ORDER "+orders.invoice_ref_num+" ALREADY EXIST IN EOS"
                                                 };
-                                                // console.log(messageError);
-                                                isi.push(messageError); 
+                                                // console.log(messageError); 
+                                                isi.push(messageError);
                                             }
                                             else{
                                                 items = {
                                                     item_id     : item.id,
-                                                    item_code   : resMapping.item_id,
+                                                    item_code   : res_mapping.item_id,
                                                     quantity    : item.quantity,
                                                     item_weight : item.weight,
                                                     unit_price  : item.price,
                                                     remark	    : item.notes
                                                 } 
-												notes = item.notes+",";
-                                            }
+                                                notes = item.notes+",";
+                                            } 
                                         }
                                         else{
-                                            messageError = {
-                                                status : 500,
-                                                message : program.shop_name+" - FAILED CREATE ORDER "+orders.invoice_ref_num,
-                                                data : "ITEM "+sku+" NOT YET MAPPING"
-                                            };
-                                            isi.push(messageError);
-                                            // console.log(messageError); 
-                                        }
-                                    }
-
-                                }
-                                // console.log(items); 
-
-                                if(items === "")
-                                {
-                                    var shipping = orders.logistics.shipping_agency;
-                                    let isCourierMapped = await findCourier(shipping, orders.logistics.service_type); 
-                                    if(typeof isCourierMapped === 'object')
-                                    {
-                                        var geo       = (orders.logistics.geo != "") ? orders.logistics.geo.split(",") : "";
-                                        var latitude  = (geo != "") ? geo[0] : 0;
-                                        var longitude = (geo != "") ? geo[1] : 0;
-                                        
-                                        // console.log(isCourierMapped)
-                                        let checkMappingLocations = await checkShopLocation(orders.warehouse_id,program.shop_configuration_id);
-                                        if(typeof checkMappingLocations === 'object')   
-                                        {
-                                            var config = {
-                                                method: 'GET',
-                                                url   : 'https://fs.tokopedia.net/v1/fs/'+program.fs_id+'/fulfillment_order?order_id='+orders.order_id,
-                                                headers: { 
-                                                    'Content-type' : 'application/json',
-                                                    'Content-Length': '0',
-                                                    'Authorization': 'Bearer '+program.token
-                                                }
-                                            };
-                                            axios(config)
-                                            .then(async (cods)=> {
-                                                if(typeof cods.data.data.order_data[0] === 'object')
+                                            var sku = (item.sku == "") ? item.id : item.sku.toUpperCase();
+                                            // console.log(sku)   
+                                            let resMapping = await checkMappingItemCode(sku,program.shop_configuration_id);
+                                            if(resMapping)
+                                            {
+                                                if(resMapping.item_id == "")
                                                 {
-                                                    var date      = orders.create_time + (3600*7);
-                                                    var dates     = new Date(date);
-                                                    let month     = await setMonth(dates.getMonth());
-                                                    var timeStamp = dates.getFullYear()+"-"+month+"-"+dates.getDate()+" "+dates.getHours()+":"+dates.getMinutes()+":"+dates.getSeconds();
-                                                    var cod       = (cods.data.data.order_data[0].order.payment_amt_cod == 0) ? "NON COD" : "COD";
-                                                    var codPrice = (cod == "COD") ? cods.data.data.order_data[0].order.payment_amt_cod : 0;
-                                                    var paymentId = (cod == "COD") ?  1 : 2;
-                                                    var bookingNumber = null;
-                                                    var waybillNumber = null;
-                                                    var orderTypeId = 1;
-                                                    let decryptOrder = await decryptTokped(orders);
-                                                    decryptOrder.recipient.address.district = orders.recipient.address.district; 
-                                                    decryptOrder.recipient.address.city = orders.recipient.address.city; 
-                                                    decryptOrder.recipient.address.province = orders.recipient.address.province; 
-                                                    decryptOrder.recipient.address.country = orders.recipient.address.country; 
-                                                    decryptOrder.recipient.address.postal_code = orders.recipient.address.postal_code;
-                                                    // console.log(timeStamp)
-                                                    let isStockTypes = await checkStockType(program.client_id,stockType);
-                                                    if(typeof isStockTypes === 'object'){
-                                                        // console.log(decryptOrder);
-                                                        let callStore = await storeOrders(orders.invoice_ref_num, program.client_id, program.channel_id, program.shop_configuration_id, isStockTypes.stock_type_id, orderTypeId, isCourierMapped.delivery_type_id, checkMappingLocations.locationid, orders.order_id, bookingNumber, waybillNumber, total_price, decryptOrder, timeStamp, totalProductPrice, discount, shippingPrice, discountShipping, paymentId, codPrice, notes, shopName, stockSource, latitude, longitude, items);
-                                                        // if(callStore)
-                                                        // { 
-                                                        //     messageSuccess = {
-                                                        //         status : 200,
-                                                        //         message : "Success Create Order",
-                                                        //         detail : {
-                                                        //             data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
-                                                        //         }
-                                                        //     };
-                                                        //     console.log(messageSuccess);
-                                                        //     // res.json(messageSuccess);
-                                                        // }
-                                                        // else{
-                                                        //     messageError = {
-                                                        //         status : 500,
-                                                        //         message : "Failed Create Order",
-                                                        //         detail : {
-                                                        //             data : "GET ORDERS - Order code "+orderCode+" has created header and detail failed"
-                                                        //         }
-                                                        //     };
-                                                        //     console.log(messageError);
-                                                        //     // res.json(messageError);
-                                                        // }
-                                                    }
-                                                    else{
-                                                        messageError = {
-                                                            shop_configuration_id : shopConfigId,
-                                                            shop_name : shopName,
-                                                            success : false,
-                                                            message : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
-                                                        };
-                                                        console.log(messageError);
-                                                    }
+                                                    messageError = {
+                                                        status : 500,
+                                                        message : program.shop_name+" - FAILED CREATE ORDER "+orders.invoice_ref_num,
+                                                        data : "ORDER "+orders.invoice_ref_num+" ALREADY EXIST IN EOS"
+                                                    };
+                                                    // console.log(messageError);
+                                                    isi.push(messageError); 
                                                 }
-                                            })
-                                            .catch(function (error) {
-                                                console.log(error.response)
-                                            });
-                                            
-                                        }
-                                        else
-                                        {
-                                            messageError = {
-                                                data   : "GET ORDERS - OrderCode "+orders.invoice_ref_num+" Failed To Create Because, ShopLocation "+orders.warehouse_id+" Not Found In Mapping ShopLocation"
+                                                else{
+                                                    items = {
+                                                        item_id     : item.id,
+                                                        item_code   : resMapping.item_id,
+                                                        quantity    : item.quantity,
+                                                        item_weight : item.weight,
+                                                        unit_price  : item.price,
+                                                        remark	    : item.notes
+                                                    } 
+                                                    notes = item.notes+",";
+                                                }
                                             }
-                                            
-                                            // let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date, locationIdJubelio]);
-                                            // res.json(messageError);
-                                            // isi.push(messageError);
-                                            console.log(messageError)
+                                            else{
+                                                messageError = {
+                                                    status : 500,
+                                                    message : program.shop_name+" - FAILED CREATE ORDER "+orders.invoice_ref_num,
+                                                    data : "ITEM "+sku+" NOT YET MAPPING"
+                                                };
+                                                isi.push(messageError);
+                                                // console.log(messageError); 
+                                            }
                                         }
-                                    } 
-                                    else{
-                                        messageError = {
-                                                data : "GET ORDERS - OrderCode "+orders.invoice_ref_num+" Failed To Create Because, Courier "+shipping+" Not Found In Mapping Courier"
-                                        };
 
-                                        // let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, courier, JSON.stringify(messageError), date]);
-                                        
-                                        console.log(messageError) 
-                                        // isi.push(messageError);
+                                    }
+                                    // console.log(items); 
+
+                                    if(items === "")
+                                    {
+                                        var shipping = orders.logistics.shipping_agency;
+                                        let isCourierMapped = await findCourier(shipping, orders.logistics.service_type); 
+                                        if(typeof isCourierMapped === 'object')
+                                        {
+                                            var geo       = (orders.logistics.geo != "") ? orders.logistics.geo.split(",") : "";
+                                            var latitude  = (geo != "") ? geo[0] : 0;
+                                            var longitude = (geo != "") ? geo[1] : 0;
+                                            
+                                            // console.log(isCourierMapped)
+                                            let checkMappingLocations = await checkShopLocation(orders.warehouse_id,program.shop_configuration_id);
+                                            if(typeof checkMappingLocations === 'object')   
+                                            {
+                                                var config = {
+                                                    method: 'GET',
+                                                    url   : 'https://fs.tokopedia.net/v1/fs/'+program.fs_id+'/fulfillment_order?order_id='+orders.order_id,
+                                                    headers: { 
+                                                        'Content-type' : 'application/json',
+                                                        'Content-Length': '0',
+                                                        'Authorization': 'Bearer '+program.token
+                                                    }
+                                                };
+                                                axios(config)
+                                                .then(async (cods)=> {
+                                                    if(typeof cods.data.data.order_data[0] === 'object')
+                                                    {
+                                                        var date      = orders.create_time + (3600*7);
+                                                        var dates     = new Date(date);
+                                                        let month     = await setMonth(dates.getMonth());
+                                                        var timeStamp = dates.getFullYear()+"-"+month+"-"+dates.getDate()+" "+dates.getHours()+":"+dates.getMinutes()+":"+dates.getSeconds();
+                                                        var cod       = (cods.data.data.order_data[0].order.payment_amt_cod == 0) ? "NON COD" : "COD";
+                                                        var codPrice = (cod == "COD") ? cods.data.data.order_data[0].order.payment_amt_cod : 0;
+                                                        var paymentId = (cod == "COD") ?  1 : 2;
+                                                        var bookingNumber = null;
+                                                        var waybillNumber = null;
+                                                        var orderTypeId = 1;
+                                                        let decryptOrder = await decryptTokped(orders);
+                                                        decryptOrder.recipient.address.district = orders.recipient.address.district; 
+                                                        decryptOrder.recipient.address.city = orders.recipient.address.city; 
+                                                        decryptOrder.recipient.address.province = orders.recipient.address.province; 
+                                                        decryptOrder.recipient.address.country = orders.recipient.address.country; 
+                                                        decryptOrder.recipient.address.postal_code = orders.recipient.address.postal_code;
+                                                        // console.log(timeStamp)
+                                                        let isStockTypes = await checkStockType(program.client_id,stockType);
+                                                        if(typeof isStockTypes === 'object'){
+                                                            // console.log(decryptOrder);
+                                                            let callStore = await storeOrders(orders.invoice_ref_num, program.client_id, program.channel_id, program.shop_configuration_id, isStockTypes.stock_type_id, orderTypeId, isCourierMapped.delivery_type_id, checkMappingLocations.locationid, orders.order_id, bookingNumber, waybillNumber, total_price, decryptOrder, timeStamp, totalProductPrice, discount, shippingPrice, discountShipping, paymentId, codPrice, notes, shopName, stockSource, latitude, longitude, items);
+                                                            // if(callStore)
+                                                            // { 
+                                                            //     messageSuccess = {
+                                                            //         status : 200,
+                                                            //         message : "Success Create Order",
+                                                            //         detail : {
+                                                            //             data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
+                                                            //         }
+                                                            //     };
+                                                            //     console.log(messageSuccess);
+                                                            //     // res.json(messageSuccess);
+                                                            // }
+                                                            // else{
+                                                            //     messageError = {
+                                                            //         status : 500,
+                                                            //         message : "Failed Create Order",
+                                                            //         detail : {
+                                                            //             data : "GET ORDERS - Order code "+orderCode+" has created header and detail failed"
+                                                            //         }
+                                                            //     };
+                                                            //     console.log(messageError);
+                                                            //     // res.json(messageError);
+                                                            // }
+                                                        }
+                                                        else{
+                                                            messageError = {
+                                                                shop_configuration_id : shopConfigId,
+                                                                shop_name : shopName,
+                                                                success : false,
+                                                                message : "GET ORDERS - Stock Type "+stockType+" Not Mapping"
+                                                            };
+                                                            console.log(messageError);
+                                                        }
+                                                    }
+                                                })
+                                                .catch(function (error) {
+                                                    console.log(error.response)
+                                                });
+                                                
+                                            }
+                                            else
+                                            {
+                                                messageError = {
+                                                    data   : "GET ORDERS - OrderCode "+orders.invoice_ref_num+" Failed To Create Because, ShopLocation "+orders.warehouse_id+" Not Found In Mapping ShopLocation"
+                                                }
+                                                
+                                                // let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date, locationIdJubelio]);
+                                                // res.json(messageError);
+                                                // isi.push(messageError);
+                                                console.log(messageError)
+                                            }
+                                        } 
+                                        else{
+                                            messageError = {
+                                                    data : "GET ORDERS - OrderCode "+orders.invoice_ref_num+" Failed To Create Because, Courier "+shipping+" Not Found In Mapping Courier"
+                                            };
+
+                                            // let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, courier, JSON.stringify(messageError), date]);
+                                            
+                                            console.log(messageError) 
+                                            // isi.push(messageError);
+                                        }
                                     }
                                 }
-                            }
-                            else{  
-                                messageError = {
-                                    status : 500,
-                                    message : program.shop_name+" - FAILED CREATE ORDER "+orders.invoice_ref_num,
-                                    data : "ORDER "+orders.invoice_ref_num+" ALREADY EXIST IN EOS"
-                                };
-                                isi.push(messageError);
-                                // console.log(messageError);                                
-                            }                             
-                        };
-                    }
-                    else{
-                        messageError = {
-                            message: response.data.header.messages,
-                            data   : response.data.header.reason
-                        };
-                        isi.push(messageError);
-                        // console.log(messageError)
-                    }
-                    res.json({
-                        status:500,
-                        messasge:"Failed",
-                        data:isi
+                                else{  
+                                    messageError = {
+                                        status : 500,
+                                        message : program.shop_name+" - FAILED CREATE ORDER "+orders.invoice_ref_num,
+                                        data : "ORDER "+orders.invoice_ref_num+" ALREADY EXIST IN EOS"
+                                    };
+                                    isi.push(messageError);
+                                    // console.log(messageError);                                
+                                }                             
+                            };
+                        }
+                        else{
+                            messageError = {
+                                message: response.data.header.messages,
+                                data   : response.data.header.reason
+                            };
+                            isi.push(messageError);
+                            // console.log(messageError)
+                        }
+                        res.json({
+                            status:500,
+                            messasge:"Failed",
+                            data:isi
+                        });
+                        // console.log(isi)
+                    })
+                    .catch(function (error) {
+                        // messageError = {
+                        //     status : error.response.header.error_code,
+                        //     message: error.response.header.messages,
+                        //     data   : error.response.header.reason
+                        // };
+                        console.log(error.response)
                     });
-                    // console.log(isi)
-                })
-                .catch(function (error) {
-                    // messageError = {
-                    //     status : error.response.header.error_code,
-                    //     message: error.response.header.messages,
-                    //     data   : error.response.header.reason
-                    // };
-                    console.log(error.response)
-                });
+                }
             }
                         
             // res.json({
