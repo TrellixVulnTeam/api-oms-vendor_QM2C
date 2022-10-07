@@ -1465,11 +1465,18 @@ async function postsyncStocks(req,res)
                 // console.log(messageError);
                 // res.json(messageError);
             }
-            res.json({
-                status:500,
-                messasge:"Failed",
-                data:isi
-            });
+            if(isi.length > 1){
+                res.json({
+                    status:500,
+                    messasge:"Failed",
+                    data:isi
+                });
+            }
+            // res.json({
+            //     status:500,
+            //     messasge:"Failed",
+            //     data:isi
+            // });
         }
         else{
             // console.log(validation);
