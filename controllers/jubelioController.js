@@ -115,93 +115,96 @@ async function getProduct (req,res,next)
         }
         else
         {
-            var rest = configs.rows[0]           
-            var page = 1;
-            var pageSize = 100;
-            // console.log(payload);
-            var axios = require('axios');
-            var config = {
-                method: 'GET',
-                url   : "https://api.jubelio.com/inventory/items/?page="+page+"&pageSize="+pageSize,
-                headers: { 
-                    'Content-Type' : 'application/json',
-                    'authorization': rest.token
-                },
-                validateStatus: () => true
-            };
-            await axios(config)
-            .then(async (response)=> 
-            {
-                var data = response.data;
-                if(response.statusText == 'OK')
+            // var rest = configs.rows[0]
+            for(const rest of configs.rows)
+            {           
+                var page = 1;
+                var pageSize = 100;
+                // console.log(payload);
+                var axios = require('axios');
+                var config = {
+                    method: 'GET',
+                    url   : "https://api.jubelio.com/inventory/items/?page="+page+"&pageSize="+pageSize,
+                    headers: { 
+                        'Content-Type' : 'application/json',
+                        'authorization': rest.token
+                    },
+                    validateStatus: () => true
+                };
+                await axios(config)
+                .then(async (response)=> 
                 {
-                    var isNextPage = false;
-                    var allGetItems = data.data;
-                    var totalCount = data.totalCount;
-                    var isNextPage = getNextPage(page, pageSize, totalCount);
-                    // console.log(isNextPage);
-                    do {
-                        if (isNextPage == true) {             
-                            page++;
-                            // console.log(payload);
-                            var axios = require('axios');
-                            var config = {
-                                method: 'GET',
-                                url   : "https://api.jubelio.com/inventory/items/?page="+page+"&pageSize="+pageSize,
-                                headers: { 
-                                    'Content-Type' : 'application/json',
-                                    'authorization': rest.token
-                                },
-                                validateStatus: () => true
-                            };
-                            await axios(config)
-                            .then(async (response2)=> 
-                            {
-                                var data2 = response2.data;
-                                if(response2.statusText == 'OK')
+                    var data = response.data;
+                    if(response.statusText == 'OK')
+                    {
+                        var isNextPage = false;
+                        var allGetItems = data.data;
+                        var totalCount = data.totalCount;
+                        var isNextPage = getNextPage(page, pageSize, totalCount);
+                        // console.log(isNextPage);
+                        do {
+                            if (isNextPage == true) {             
+                                page++;
+                                // console.log(payload);
+                                var axios = require('axios');
+                                var config = {
+                                    method: 'GET',
+                                    url   : "https://api.jubelio.com/inventory/items/?page="+page+"&pageSize="+pageSize,
+                                    headers: { 
+                                        'Content-Type' : 'application/json',
+                                        'authorization': rest.token
+                                    },
+                                    validateStatus: () => true
+                                };
+                                await axios(config)
+                                .then(async (response2)=> 
                                 {
-                                    isNextPage = getNextPage(page, pageSize, totalCount);
-                                    var nextArraygetItems = data2.data;
-                                    allGetItems = arrayUnique(allGetItems.concat(nextArraygetItems));
-                                } else {
-                                    res.json({
-                                        status : false,
-                                        message: "failed",
-                                        data   : response2.data
-                                    });
-                                }
-                            });
-                        } else {
-                            break;
-                        }
-                    } while (isNextPage == true);
+                                    var data2 = response2.data;
+                                    if(response2.statusText == 'OK')
+                                    {
+                                        isNextPage = getNextPage(page, pageSize, totalCount);
+                                        var nextArraygetItems = data2.data;
+                                        allGetItems = arrayUnique(allGetItems.concat(nextArraygetItems));
+                                    } else {
+                                        res.json({
+                                            status : false,
+                                            message: "failed",
+                                            data   : response2.data
+                                        });
+                                    }
+                                });
+                            } else {
+                                break;
+                            }
+                        } while (isNextPage == true);
 
-                    for(let allGetItem of allGetItems){
-                        var variants = allGetItem.variants;
-                        for(let variant of variants){
-                            // console.log(variant);
-                            let callStore = storeItems(variant, rest.shop_configuration_id, rest.client_id);
-                                console.log(callStore);
+                        for(let allGetItem of allGetItems){
+                            var variants = allGetItem.variants;
+                            for(let variant of variants){
+                                // console.log(variant);
+                                let callStore = storeItems(variant, rest.shop_configuration_id, rest.client_id);
+                                    console.log(callStore);
+                            };
                         };
-                    };
-                }
-                else
+                    }
+                    else
+                    {
+                        res.json({
+                            status : false,
+                            message: "failed",
+                            data   : response.data
+                        });
+                    }
+                })
+                .catch(function (error) 
                 {
                     res.json({
                         status : false,
                         message: "failed",
-                        data   : response.data
+                        data   : "Server error"
                     });
-                }
-            })
-            .catch(function (error) 
-            {
-                res.json({
-                    status : false,
-                    message: "failed",
-                    data   : "Server error"
                 });
-            });
+            }
         }
     } 
     catch (error) 
@@ -233,42 +236,92 @@ async function getOrders (req,res,next)
         else
         {
             const date = moment().format("YYYY-MM-DD HH:mm:ss");
-            var rest = configs.rows[0];    
-            var orderType   = "Sales Order";   
-            var channelName = 'JUBELIO';   
-            // rest.multi_channel == 1 ? stockType = 'MULTI CHANNEL' : stockType = channelName;
-            var stockType = 'MULTI CHANNEL'
-            var page = 1;
-            var pageSize = 100;
-            var axios = require('axios');
-            var config = {
-                method: 'GET',
-                url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
-                headers: { 
-                    'Content-Type' : 'application/json',
-                    'authorization': rest.token
-                },
-                validateStatus: () => true
-            };
-            await axios(config)
-            .then(async (response)=> 
+            // var rest = configs.rows;    
+            for(const rest of configs.rows)
             {
-                if(response.status == 200)
+                // console.log(rest)
+                var orderType   = "Sales Order";   
+                var channelName = 'JUBELIO';   
+                // rest.multi_channel == 1 ? stockType = 'MULTI CHANNEL' : stockType = channelName;
+                var stockType = 'MULTI CHANNEL'
+                var page = 1;
+                var pageSize = 100;
+                var axios = require('axios');
+                var config = {
+                    method: 'GET',
+                    url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
+                    headers: { 
+                        'Content-Type' : 'application/json',
+                        'authorization': rest.token
+                    },
+                    validateStatus: () => true
+                };
+                await axios(config)
+                .then(async (response)=> 
                 {
-                    if(response.data.totalCount > 0){
-                        var data = response.data;
-                        var allGetOrders = data.data;
-                        var totalCount = data.totalCount;
-                        // console.log(allGetOrders);
-                        do {
-                            var isNextPage = getNextPage(page, pageSize, totalCount);
-                            if (isNextPage == true) {             
-                                page++;
-                                // console.log(payload);
+                    if(response.status == 200)
+                    {
+                        if(response.data.totalCount > 0){
+                            var data = response.data;
+                            var allGetOrders = data.data;
+                            var totalCount = data.totalCount;
+                            // console.log(allGetOrders);
+                            do {
+                                var isNextPage = getNextPage(page, pageSize, totalCount);
+                                if (isNextPage == true) {             
+                                    page++;
+                                    // console.log(payload);
+                                    var axios = require('axios');
+                                    var config = {
+                                        method: 'GET',
+                                        url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
+                                        headers: { 
+                                            'Content-Type' : 'application/json',
+                                            'authorization': rest.token
+                                        },
+                                        validateStatus: () => true
+                                    };
+                                    await axios(config)
+                                    .then(async (response2)=> 
+                                    {
+                                        var data2 = response2.data;
+                                        if(response2.status == 200)
+                                        {
+                                            isNextPage = getNextPage(page, pageSize, totalCount);
+                                            var nextArraygetOrders = data2.data;
+                                            allGetOrders = arrayUnique(allGetOrders.concat(nextArraygetOrders));
+                                        } else {
+                                            res.json({
+                                                status : false,
+                                                message: "failed",
+                                                data   : response2.data
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    break;
+                                }
+                            } while (isNextPage == true);
+                            // pake ii bisa atau pake for
+                            // allGetOrders.forEach(getdata => {
+                            //     console.log(getdata);
+                            // })
+
+                            for(let allGetOrder of allGetOrders){
+                                // console.log(getdata);
+                                var salesOrderNo = allGetOrder.salesorder_no;
+                                var sourceName   = allGetOrder.source_name;
+                                var orderCode    = salesOrderNo;                        
+                                var is_prefix = salesOrderNo.indexOf("-");
+                                if(is_prefix) {
+                                    var explodeOrderCode = salesOrderNo.split("-");
+                                    orderCode = explodeOrderCode[1];
+                                }
+                                var salesOrderId = allGetOrder.salesorder_id;
                                 var axios = require('axios');
                                 var config = {
                                     method: 'GET',
-                                    url   : "https://api.jubelio.com/sales/orders/ready-to-pick/?page="+page+"&pageSize="+pageSize,
+                                    url   : "https://api.jubelio.com/sales/orders/"+salesOrderId,
                                     headers: { 
                                         'Content-Type' : 'application/json',
                                         'authorization': rest.token
@@ -276,183 +329,148 @@ async function getOrders (req,res,next)
                                     validateStatus: () => true
                                 };
                                 await axios(config)
-                                .then(async (response2)=> 
+                                .then(async (responseSo)=> 
                                 {
-                                    var data2 = response2.data;
-                                    if(response2.status == 200)
+                                    var getSalesOrder = responseSo.data;
+                                    if(responseSo.status == 200)
                                     {
-                                        isNextPage = getNextPage(page, pageSize, totalCount);
-                                        var nextArraygetOrders = data2.data;
-                                        allGetOrders = arrayUnique(allGetOrders.concat(nextArraygetOrders));
-                                    } else {
-                                        res.json({
-                                            status : false,
-                                            message: "failed",
-                                            data   : response2.data
-                                        });
-                                    }
-                                });
-                            } else {
-                                break;
-                            }
-                        } while (isNextPage == true);
-                        // pake ii bisa atau pake for
-                        // allGetOrders.forEach(getdata => {
-                        //     console.log(getdata);
-                        // })
-
-                        for(let allGetOrder of allGetOrders){
-                            // console.log(getdata);
-                            var salesOrderNo = allGetOrder.salesorder_no;
-                            var sourceName   = allGetOrder.source_name;
-                            var orderCode    = salesOrderNo;                        
-                            var is_prefix = salesOrderNo.indexOf("-");
-                            if(is_prefix) {
-                                var explodeOrderCode = salesOrderNo.split("-");
-                                orderCode = explodeOrderCode[1];
-                            }
-                            var salesOrderId = allGetOrder.salesorder_id;
-                            var axios = require('axios');
-                            var config = {
-                                method: 'GET',
-                                url   : "https://api.jubelio.com/sales/orders/"+salesOrderId,
-                                headers: { 
-                                    'Content-Type' : 'application/json',
-                                    'authorization': rest.token
-                                },
-                                validateStatus: () => true
-                            };
-                            await axios(config)
-                            .then(async (responseSo)=> 
-                            {
-                                var getSalesOrder = responseSo.data;
-                                if(responseSo.status == 200)
-                                {
-                                    var locationIdJubelio = getSalesOrder.location_id;
-                                    let checkMappingLocations = await checkShopLocation(locationIdJubelio,rest.shop_configuration_id);
-                                    // console.log(checkMappingLocations);
-                                    if(checkMappingLocations)
-                                    {
-                                        for(const checkMappingLocation of checkMappingLocations)
+                                        var locationIdJubelio = getSalesOrder.location_id;
+                                        let checkMappingLocations = await checkShopLocation(locationIdJubelio,rest.shop_configuration_id);
+                                        // console.log(checkMappingLocations);
+                                        if(checkMappingLocations)
                                         {
-                                            let isInOrders = await checkOrderCode(orderCode);
-                                            if(!isInOrders)
+                                            for(const checkMappingLocation of checkMappingLocations)
                                             {
-                                                let isStockTypes = await checkStockType(rest.client_id,stockType);
-                                                if(isStockTypes){
-                                                    for(const isStockType of isStockTypes)
-                                                    {
-                                                        var stockTypeId = isStockType.stock_type_id;
-                                                        if (!getSalesOrder.shipper) {
-                                                            if (sourceName == "LAZADA") {
-                                                                var courier = "Lazada Express";
-                                                            } else {
-                                                                var courier = "JNE REG";
-                                                            }
-                                                        } else {
-                                                            var courier = getSalesOrder.shipper;
-                                                        }
-                                                        // console.log(courier)
-
-                                                        let isCourierMapped = await findCourier(courier, channelName); 
-                                                        if(isCourierMapped)
-                                                        {
-                                                            for(const CourierMapped of isCourierMapped)
-                                                            {
-                                                                var items = getSalesOrder.items;
-                                                                let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
-                                                                // console.log(callStore);
-                                                                // if(callStore)
-                                                                // {    
-                                                                //     messageSuccess = {
-                                                                //         data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
-                                                                //     };
-                                                                //     isu.push(messageSuccess);
-                                                                // }
-                                                                // else{
-                                                                //     // pg.query("ROLLBACK");
-                                                                //     messageError = {
-                                                                //         data : "GET ORDERS - Order code "+orderCode+" has created header and detail Failed"
-                                                                //     };
-                                                                //     isi.push(messageError);
-                                                                // }
-                                                            }
-                                                        } 
-                                                        else{
-                                                            messageError = {
-                                                                    data : "GET ORDERS - OrderCode "+orderCode+" Failed To Create Because, Courier "+courier+" Not Found In Mapping Courier"
-                                                            };
-            
-                                                            let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, courier, JSON.stringify(messageError), date]);
-                                                            
-                                                            isi.push(messageError);
-                                                            // console.log(JSON.stringify(messageError));
-                                                            // res.json(messageError);
-                                                        }
-                                                    }
-                                                }
-                                                else
+                                                let isInOrders = await checkOrderCode(orderCode);
+                                                if(!isInOrders)
                                                 {
-                                                    messageError = {
-                                                        data : "GET ORDERS - OrderCode "+orderCode+" Failed To Create Because, Stock Type "+stockType+" Not Found In Mapping StockType"
+                                                    let isStockTypes = await checkStockType(rest.client_id,stockType);
+                                                    if(isStockTypes){
+                                                        for(const isStockType of isStockTypes)
+                                                        {
+                                                            var stockTypeId = isStockType.stock_type_id;
+                                                            if (!getSalesOrder.shipper) {
+                                                                if (sourceName == "LAZADA") {
+                                                                    var courier = "Lazada Express";
+                                                                } else {
+                                                                    var courier = "JNE REG";
+                                                                }
+                                                            } else {
+                                                                var courier = getSalesOrder.shipper;
+                                                            }
+                                                            // console.log(courier)
+
+                                                            let isCourierMapped = await findCourier(courier, channelName); 
+                                                            if(isCourierMapped)
+                                                            {
+                                                                for(const CourierMapped of isCourierMapped)
+                                                                {
+                                                                    var items = getSalesOrder.items;
+                                                                    let callStore = await storeOrders(getSalesOrder, items, rest, channelName, stockTypeId, salesOrderNo, orderCode, checkMappingLocation, sourceName, orderType, CourierMapped);
+                                                                    // console.log(callStore);
+                                                                    // if(callStore)
+                                                                    // {    
+                                                                    //     messageSuccess = {
+                                                                    //         data : "GET ORDERS - Order code "+orderCode+" has created header and detail successfully"
+                                                                    //     };
+                                                                    //     isu.push(messageSuccess);
+                                                                    // }
+                                                                    // else{
+                                                                    //     // pg.query("ROLLBACK");
+                                                                    //     messageError = {
+                                                                    //         data : "GET ORDERS - Order code "+orderCode+" has created header and detail Failed"
+                                                                    //     };
+                                                                    //     isi.push(messageError);
+                                                                    // }
+                                                                }
+                                                            } 
+                                                            else{
+                                                                messageError = {
+                                                                        data : "GET ORDERS - OrderCode "+orderCode+" Failed To Create Because, Courier "+courier+" Not Found In Mapping Courier"
+                                                                };
+                
+                                                                let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, courier, JSON.stringify(messageError), date]);
+                                                                
+                                                                isi.push(messageError);
+                                                                // console.log(JSON.stringify(messageError));
+                                                                // res.json(messageError);
+                                                            }
+                                                        }
                                                     }
+                                                    else
+                                                    {
+                                                        messageError = {
+                                                            data : "GET ORDERS - OrderCode "+orderCode+" Failed To Create Because, Stock Type "+stockType+" Not Found In Mapping StockType"
+                                                        }
 
-                                                    let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, stockType, JSON.stringify(messageError), date]);
-                                                    isi.push(messageError);
-                                                    
-                                                    // res.json(messageError);
+                                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, stockType, JSON.stringify(messageError), date]);
+                                                        isi.push(messageError);
+                                                        
+                                                        // res.json(messageError);
+                                                    }
                                                 }
-                                            }
-                                            else
-                                            {
-                                                messageError = {
-                                                    data : "GET ORDERS - order Code "+orderCode+" already exist"
-                                                }
+                                                // else
+                                                // {
+                                                //     messageError = {
+                                                //         data : "GET ORDERS - order Code "+orderCode+" already exist"
+                                                //     }
 
-                                                let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date]);
-                                                isi.push(messageError)
-                                                // res.json(messageError);
+                                                //     let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date]);
+                                                //     isi.push(messageError)
+                                                //     // res.json(messageError);
+                                                // }
+                                            }     
+                                        }
+                                        else
+                                        {
+                                            messageError = {
+                                                data   : "GET ORDERS - OrderCode "+orderCode+" Failed To Create Because, ShopLocation "+locationIdJubelio+" Not Found In Mapping ShopLocation"
                                             }
-                                        }     
+                                            
+                                            let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date, locationIdJubelio]);
+                                            // res.json(messageError);
+                                            isi.push(messageError);
+
+                                        }
+                                        // res.json(isi);
                                     }
                                     else
                                     {
                                         messageError = {
-                                            data   : "GET ORDERS - OrderCode "+orderCode+" Failed To Create Because, ShopLocation "+locationIdJubelio+" Not Found In Mapping ShopLocation"
+                                            data   : responseSo.data
                                         }
                                         
-                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date, params) VALUES ($1, $2, $3, $4, $5, $6, $7)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date, locationIdJubelio]);
+                                        let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date]);
                                         // res.json(messageError);
                                         isi.push(messageError);
-
                                     }
-                                    // res.json(isi);
-                                }
-                                else
+                                })
+                                .catch(function (error) 
                                 {
-                                    messageError = {
-                                        data   : responseSo.data
-                                    }
-                                    
-                                    let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, order_code, item_code, result, created_date) VALUES ($1, $2, $3, $4, $5, $6)",[rest.client_id, rest.shop_configuration_id, orderCode, salesOrderId, JSON.stringify(messageError), date]);
-                                    // res.json(messageError);
-                                    isi.push(messageError);
-                                }
-                            })
-                            .catch(function (error) 
-                            {
-                                res.json({
-                                    status : false,
-                                    message: "failed",
-                                    data   : error
+                                    res.json({
+                                        status : false,
+                                        message: "failed",
+                                        data   : error
+                                    });
                                 });
-                            });
+                            }
+                        }
+                        else
+                        {
+                            messageError = {
+                                data   : "Order Not Found"
+                            }
+                            
+                            let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, result, created_date) VALUES ($1, $2, $3, $4)",[rest.client_id, rest.shop_configuration_id, JSON.stringify(messageError), date]);
+                            // res.json(messageError);
+                            isi.push(messageError);
+
                         }
                     }
                     else
                     {
                         messageError = {
-                            data   : "Order Not Found"
+                            data   : response.data
                         }
                         
                         let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, result, created_date) VALUES ($1, $2, $3, $4)",[rest.client_id, rest.shop_configuration_id, JSON.stringify(messageError), date]);
@@ -460,37 +478,29 @@ async function getOrders (req,res,next)
                         isi.push(messageError);
 
                     }
-                }
-                else
-                {
-                    messageError = {
-                        data   : response.data
+                    // console.log(isi.length > 1)
+                    if(isi.length > 1){
+                        res.json({
+                            status:500,
+                            messasge:"Failed",
+                            data:isi
+                        });
                     }
-                    
-                    let logapi = await conn_pg.query("INSERT INTO logapi(client_id, shop_configuration_id, result, created_date) VALUES ($1, $2, $3, $4)",[rest.client_id, rest.shop_configuration_id, JSON.stringify(messageError), date]);
-                    // res.json(messageError);
-                    isi.push(messageError);
-
-                }
-                res.json({
-                    status:500,
-                    messasge:"Failed",
-                    data:isi
+                    // res.json({
+                    //     status:200,
+                    //     messasge:"Success",
+                    //     data:isu
+                    // });
+                })
+                .catch(function (error) 
+                {
+                    res.json({
+                        status : false,
+                        message: "failed",
+                        data   : error
+                    });
                 });
-                res.json({
-                    status:200,
-                    messasge:"Success",
-                    data:isu
-                });
-            })
-            .catch(function (error) 
-            {
-                res.json({
-                    status : false,
-                    message: "failed",
-                    data   : error
-                });
-            });
+            }
         }
     } 
     catch (error) 
